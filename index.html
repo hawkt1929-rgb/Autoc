@@ -1,0 +1,2717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<title>Claude Voice</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#000;font-family:'DM Sans',-apple-system,sans-serif;color:#fff}
+
+/* ── SPACE BACKGROUND ── */
+#space{position:fixed;inset:0;z-index:0;overflow:hidden}
+#space canvas{position:absolute;inset:0;width:100%;height:100%}
+.nebula{position:absolute;border-radius:50%;filter:blur(60px);pointer-events:none}
+.neb1{width:600px;height:400px;top:-10%;left:-20%;background:radial-gradient(ellipse,rgba(30,0,80,.7),transparent 70%)}
+.neb2{width:500px;height:500px;top:30%;right:-20%;background:radial-gradient(ellipse,rgba(0,20,80,.6),transparent 70%)}
+.neb3{width:400px;height:300px;bottom:-5%;left:10%;background:radial-gradient(ellipse,rgba(60,0,40,.5),transparent 70%)}
+.neb4{width:300px;height:300px;top:10%;right:10%;background:radial-gradient(ellipse,rgba(0,60,80,.4),transparent 70%)}
+
+/* ── APP SHELL ── */
+#app{position:relative;z-index:1;height:100dvh;max-width:480px;margin:0 auto;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── HEADER ── */
+header{
+  position:absolute;top:0;left:0;right:0;z-index:10;
+  padding:16px 20px 0;
+  display:flex;align-items:center;justify-content:space-between;
+}
+header::after{display:none}
+.logo{font-family:'Orbitron',monospace;font-size:15px;font-weight:900;letter-spacing:3px;color:#fff;text-shadow:0 0 14px rgba(120,200,255,0.7)}
+.logo span{color:#7cf}
+.header-btns{display:flex;gap:8px}
+.icon-btn{
+  width:36px;height:36px;border-radius:10px;
+  border:1px solid rgba(120,200,255,0.18);
+  background:rgba(5,12,28,0.55);
+  color:rgba(190,225,255,0.7);font-size:15px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(10px);
+  box-shadow:0 2px 12px rgba(0,0,0,0.35);
+  transition:all 0.18s;
+}
+.icon-btn:active{background:rgba(0,140,255,0.18);border-color:rgba(120,200,255,0.5);}
+
+/* ── STATUS BADGE ── */
+.status-wrap{
+  position:absolute;bottom:112px;left:50%;transform:translateX(-50%);
+  z-index:10;white-space:nowrap;
+}
+.status-badge{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:5px 16px;border-radius:4px;
+  background:rgba(4,10,24,0.72);
+  border:1px solid rgba(120,200,255,0.18);
+  border-top:1px solid rgba(120,200,255,0.32);
+  font-size:10px;color:rgba(170,215,255,0.6);
+  backdrop-filter:blur(12px);letter-spacing:.1em;text-transform:uppercase;
+  box-shadow:0 4px 20px rgba(0,0,0,0.4);
+}
+.s-dot{width:6px;height:6px;border-radius:50%;background:#7cf;box-shadow:0 0 8px #7cf;flex-shrink:0}
+
+/* ── ASTRONAUT STAGE — fills screen ── */
+#stage{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+}
+#astro-wrap{position:absolute;width:220px;height:300px;flex-shrink:0;transition:none;will-change:transform;}
+#astro-svg{width:100%;height:100%;overflow:visible;}
+
+/* ── ZERO-G FLOAT SYSTEM — Silky smooth ── */
+.float-anim{
+  animation: floatIdle 12s cubic-bezier(0.45,0.05,0.55,0.95) infinite;
+  will-change: transform;
+}
+@keyframes floatIdle{
+  0%   { transform: translateY(0px)   rotate(0deg)    scale(1);     }
+  25%  { transform: translateY(-14px) rotate(1deg)    scale(1.008); }
+  50%  { transform: translateY(-22px) rotate(0deg)    scale(1.012); }
+  75%  { transform: translateY(-10px) rotate(-1deg)   scale(1.006); }
+  100% { transform: translateY(0px)   rotate(0deg)    scale(1);     }
+}
+.anim-listening .float-anim{
+  animation: floatListen 7s cubic-bezier(0.45,0.05,0.55,0.95) infinite;
+}
+@keyframes floatListen{
+  0%   { transform: translateY(0px)   rotate(-1deg)  scale(1);     }
+  30%  { transform: translateY(-10px) rotate(2deg)   scale(1.012); }
+  60%  { transform: translateY(-14px) rotate(0.5deg) scale(1.016); }
+  100% { transform: translateY(0px)   rotate(-1deg)  scale(1);     }
+}
+.anim-thinking .float-anim{
+  animation: floatThink 9s cubic-bezier(0.45,0.05,0.55,0.95) infinite;
+}
+@keyframes floatThink{
+  0%   { transform: translateY(0px)   rotate(0deg)  scale(1);     }
+  30%  { transform: translateY(-14px) rotate(2.5deg) scale(1.01); }
+  60%  { transform: translateY(-20px) rotate(0.5deg) scale(1.014);}
+  80%  { transform: translateY(-12px) rotate(-2deg)  scale(1.01); }
+  100% { transform: translateY(0px)   rotate(0deg)  scale(1);     }
+}
+.anim-speaking .float-anim{
+  animation: floatSpeak 5s cubic-bezier(0.45,0.05,0.55,0.95) infinite;
+}
+@keyframes floatSpeak{
+  0%   { transform: translateY(0px)   rotate(-0.5deg) scale(1);    }
+  35%  { transform: translateY(-12px) rotate(1deg)    scale(1.016);}
+  65%  { transform: translateY(-18px) rotate(0deg)    scale(1.02); }
+  100% { transform: translateY(0px)   rotate(-0.5deg) scale(1);    }
+}
+.anim-excited .float-anim{
+  animation: floatExcited 3s cubic-bezier(0.34,1.2,0.64,1) infinite;
+}
+@keyframes floatExcited{
+  0%   { transform: translateY(0px)   rotate(-1deg) scale(1);    }
+  40%  { transform: translateY(-26px) rotate(3deg)  scale(1.065);}
+  70%  { transform: translateY(-18px) rotate(-2deg) scale(1.04); }
+  100% { transform: translateY(0px)   rotate(-1deg) scale(1);    }
+}
+
+/* Thruster glow under boots */
+.thruster{position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);width:90px;height:24px;background:radial-gradient(ellipse,rgba(100,220,255,.6),rgba(80,140,255,.3) 50%,transparent 80%);filter:blur(5px);animation:thrustPulse 4s cubic-bezier(0.45,0.05,0.55,0.95) infinite}
+.thruster::after{content:'';position:absolute;inset:4px 15px;border-radius:50%;background:radial-gradient(ellipse,rgba(255,255,255,.5),transparent 70%);animation:thrustCore 2s ease-in-out infinite}
+@keyframes thrustPulse{
+  0%  {opacity:.3;transform:translateX(-50%) scaleX(0.8) scaleY(0.8)}
+  25% {opacity:.7;transform:translateX(-50%) scaleX(1.2) scaleY(1.1)}
+  50% {opacity:.5;transform:translateX(-50%) scaleX(1.0) scaleY(0.9)}
+  75% {opacity:.8;transform:translateX(-50%) scaleX(1.3) scaleY(1.2)}
+  100%{opacity:.3;transform:translateX(-50%) scaleX(0.8) scaleY(0.8)}
+}
+@keyframes thrustCore{0%,100%{opacity:.4}50%{opacity:.9}}
+
+/* Speech bubble — appears above helmet */
+#bubble{
+  position:absolute;top:-60px;left:50%;transform:translateX(-50%);
+  white-space:nowrap;max-width:220px;white-space:normal;
+  background:rgba(4,10,26,0.92);
+  border:1px solid rgba(100,190,255,0.28);
+  border-top:1px solid rgba(100,190,255,0.45);
+  border-radius:14px;padding:9px 14px;
+  font-size:12px;line-height:1.5;color:rgba(200,230,255,0.92);
+  backdrop-filter:blur(12px);
+  box-shadow:0 4px 24px rgba(0,0,0,0.5),0 0 20px rgba(0,80,200,0.1);
+  display:none;text-align:center;
+  animation:bubblePop .28s cubic-bezier(.34,1.4,.64,1);
+}
+@keyframes bubblePop{from{opacity:0;transform:translateX(-50%) scale(.85) translateY(6px)}to{opacity:1;transform:translateX(-50%) scale(1) translateY(0)}}
+#bubble::after{
+  content:'';position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);
+  width:10px;height:10px;
+  background:rgba(4,10,26,0.92);
+  border-right:1px solid rgba(100,190,255,0.28);
+  border-bottom:1px solid rgba(100,190,255,0.28);
+  transform:translateX(-50%) rotate(45deg);
+}
+
+/* ── BOTTOM BAR ── */
+#controls{
+  position:absolute;bottom:0;left:0;right:0;z-index:10;
+  display:flex;flex-direction:column;align-items:center;
+  padding:0 20px 28px;gap:0;
+}
+
+/* Status / transcript text above orb */
+.display-text{
+  font-size:13px;line-height:1.5;color:rgba(200,225,255,0.75);
+  min-height:0;max-width:300px;font-family:'DM Sans',sans-serif;
+  text-align:center;margin-bottom:12px;
+  text-shadow:0 1px 8px rgba(0,0,0,0.6);
+}
+.display-text.muted{color:rgba(150,185,220,0.28);}
+.stream-text{font-size:11px;color:rgba(80,180,255,0.7);text-align:center;max-width:290px;font-style:italic;margin-bottom:8px;min-height:0;}
+.interim{font-size:11px;color:rgba(255,255,255,0.28);font-style:italic;text-align:center;min-height:0;margin-bottom:6px;}
+
+/* Bottom action row */
+.btn-row{
+  display:flex;gap:10px;align-items:center;justify-content:center;
+  width:100%;
+}
+
+/* Main mic button */
+#orbBtn{
+  width:72px;height:72px;border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,rgba(0,150,255,0.18),rgba(0,20,60,0.92));
+  border:none;outline:none;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;position:relative;
+  transition:transform 0.2s cubic-bezier(0.34,1.4,0.64,1);
+  backdrop-filter:blur(8px);
+}
+/* Outer ring */
+#orbBtn::before{
+  content:'';position:absolute;inset:-3px;border-radius:50%;
+  background:conic-gradient(rgba(0,180,255,0.7) 0deg, rgba(80,120,255,0.5) 120deg, rgba(0,180,255,0.2) 240deg, rgba(0,180,255,0.7) 360deg);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 1.5px),#fff calc(100% - 1.5px));
+  mask:radial-gradient(farthest-side,transparent calc(100% - 1.5px),#fff calc(100% - 1.5px));
+  animation:ringRotate 6s linear infinite;
+  opacity:0.7;
+}
+/* Inner glow ring */
+#orbBtn::after{
+  content:'';position:absolute;inset:0;border-radius:50%;
+  box-shadow:0 0 28px rgba(0,140,255,0.3),0 0 60px rgba(0,80,200,0.15),inset 0 0 24px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.08);
+}
+/* Mic SVG icon */
+#orbBtn svg{position:relative;z-index:1;width:26px;height:26px;fill:rgba(180,220,255,0.92);}
+#orbBtn:active{transform:scale(0.91);}
+#orbBtn.pulsing::before{animation:ringRotate 2s linear infinite;opacity:1;}
+#orbBtn.pulsing::after{animation:orbGlow 2s ease-in-out infinite;}
+@keyframes ringRotate{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes orbGlow{
+  0%,100%{box-shadow:0 0 28px rgba(0,140,255,0.3),0 0 60px rgba(0,80,200,0.15),inset 0 0 24px rgba(0,0,0,0.5);}
+  50%{box-shadow:0 0 50px rgba(0,200,255,0.6),0 0 100px rgba(0,120,255,0.3),inset 0 0 24px rgba(0,0,0,0.5);}
+}
+
+/* Side action buttons */
+.btn{
+  padding:10px 18px;border-radius:50px;font-size:12px;
+  cursor:pointer;font-family:inherit;border:none;
+  transition:all 0.18s;letter-spacing:0.04em;font-weight:500;
+}
+.btn:active{opacity:0.7;transform:scale(0.96);}
+.btn-speak{background:rgba(100,190,255,0.1);border:1px solid rgba(100,190,255,0.28);color:rgba(150,215,255,0.9);}
+.btn-stop{background:rgba(255,70,70,0.1);border:1px solid rgba(255,70,70,0.22);color:rgba(255,130,130,0.9);}
+.btn-interrupt{background:rgba(255,175,0,0.1);border:1px solid rgba(255,175,0,0.28);color:rgba(255,205,70,0.9);display:none;}
+
+/* ── CHAT LOG — top right mini panel ── */
+#chat{
+  position:absolute;top:64px;right:12px;z-index:20;
+  width:220px;max-height:45vh;overflow-y:auto;
+  background:rgba(2,7,20,0.92);
+  border-radius:14px;
+  border:1px solid rgba(100,180,255,0.15);
+  border-top:1px solid rgba(100,180,255,0.28);
+  padding:10px 12px;display:none;
+  backdrop-filter:blur(16px);
+  box-shadow:0 8px 32px rgba(0,0,0,0.6), 0 0 20px rgba(0,60,160,0.1);
+  animation:fadeSlideIn 0.25s cubic-bezier(0.34,1.2,0.64,1);
+}
+@keyframes fadeSlideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.chat-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.2);margin-bottom:8px;display:flex;justify-content:space-between}
+.clr-btn{font-size:9px;color:rgba(255,80,80,.4);background:none;border:none;font-family:inherit;cursor:pointer}
+.bw{display:flex;margin-bottom:6px}.bw.user{justify-content:flex-end}.bw.bot{justify-content:flex-start}.bw.system{justify-content:center}
+.bb{max-width:85%;padding:7px 11px;font-size:12px;line-height:1.4}
+.bb.user{background:linear-gradient(135deg,#1a0a60,#4a1a9a);border-radius:14px 14px 3px 14px;color:rgba(255,255,255,.95)}
+.bb.bot{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);border-radius:14px 14px 14px 3px;color:rgba(255,255,255,.85)}
+.bb.error{background:rgba(255,23,68,.2);border-radius:12px;color:#ff6b6b}
+.bb.system{background:rgba(120,200,255,.07);border:1px solid rgba(120,200,255,.15);border-radius:10px;color:rgba(120,200,255,.7);font-size:10px;text-align:center;width:100%}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+
+/* ── PANELS ── */
+.panel-overlay{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);opacity:0;pointer-events:none;transition:opacity .3s}
+.panel-overlay.show{opacity:1;pointer-events:all}
+.panel{position:absolute;bottom:0;left:50%;transform:translateX(-50%) translateY(100%);width:100%;max-width:480px;background:linear-gradient(160deg,#080f1e,#0d1525);border:1px solid rgba(120,200,255,.12);border-radius:24px 24px 0 0;padding:12px 24px 44px;transition:transform .4s cubic-bezier(.34,1.56,.64,1)}
+.panel-overlay.show .panel{transform:translateX(-50%) translateY(0)}
+.ph{width:36px;height:3px;background:rgba(255,255,255,.15);border-radius:2px;margin:0 auto 18px}
+.pt{font-family:'Orbitron',monospace;font-size:14px;font-weight:700;margin-bottom:18px;color:#7cf;letter-spacing:1px}
+.sr{margin-bottom:18px}
+.sl{font-size:12px;color:rgba(255,255,255,.5);margin-bottom:7px;display:flex;justify-content:space-between;align-items:center}
+.sl span{font-size:11px;color:#7cf;font-weight:600}
+.si{width:100%;padding:11px 13px;border-radius:11px;font-size:13px;font-family:inherit;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#fff;outline:none}
+.si:focus{border-color:rgba(120,200,255,.4)}
+.srow{display:flex;align-items:center;gap:10px}
+input[type=range]{flex:1;-webkit-appearance:none;height:3px;border-radius:2px;background:rgba(255,255,255,.12);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,#7cf,#46a);cursor:pointer}
+.psave{width:100%;padding:13px;border-radius:12px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;border:none;background:linear-gradient(135deg,#0af,#46a);color:#fff;margin-top:2px}
+.hi{padding:9px 11px;border-radius:11px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);margin-bottom:7px;cursor:pointer}
+.hd{font-size:9px;color:rgba(255,255,255,.3);margin-bottom:2px}
+.hp{font-size:12px;color:rgba(255,255,255,.65);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hmt{font-size:12px;color:rgba(255,255,255,.25);text-align:center;padding:16px 0}
+.pscroll{max-height:50dvh;overflow-y:auto}
+.ha{display:flex;justify-content:flex-end;margin-bottom:10px}
+.db{font-size:11px;color:rgba(255,80,80,.5);background:none;border:none;font-family:inherit;cursor:pointer}
+
+/* ── MIC MODAL ── */
+.modal-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.8);backdrop-filter:blur(10px);display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
+.modal-overlay.show{opacity:1;pointer-events:all}
+.modal{background:linear-gradient(160deg,#080f1e,#0d1525);border:1px solid rgba(120,200,255,.15);border-radius:24px 24px 0 0;padding:12px 24px 44px;width:100%;max-width:480px;transform:translateY(100%);transition:transform .4s cubic-bezier(.34,1.56,.64,1)}
+.modal-overlay.show .modal{transform:translateY(0)}
+.mh{width:36px;height:3px;background:rgba(255,255,255,.15);border-radius:2px;margin:0 auto 18px}
+.mi{font-size:44px;text-align:center;margin-bottom:10px}
+.mt{font-family:'Orbitron',monospace;font-size:17px;font-weight:700;text-align:center;margin-bottom:5px;color:#fff}
+.ms{font-size:12px;color:rgba(255,255,255,.4);text-align:center;margin-bottom:20px;line-height:1.5}
+.mtabs{display:flex;gap:7px;margin-bottom:18px}
+.tb{flex:1;padding:7px;border-radius:9px;font-size:12px;font-family:inherit;cursor:pointer;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:rgba(255,255,255,.4);transition:all .2s}
+.tb.active{background:rgba(120,200,255,.12);border-color:rgba(120,200,255,.3);color:#7cf;font-weight:600}
+.steps{display:flex;flex-direction:column;gap:12px;margin-bottom:20px}
+.step{display:flex;gap:10px;align-items:flex-start}
+.sn{width:24px;height:24px;border-radius:50%;flex-shrink:0;background:rgba(120,200,255,.12);border:1px solid rgba(120,200,255,.25);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#7cf}
+.st{font-size:13px;color:rgba(255,255,255,.7);line-height:1.5;padding-top:2px}
+.st b{color:#fff}
+.mpb{width:100%;padding:14px;border-radius:14px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;border:none;background:linear-gradient(135deg,#0af,#46a);color:#fff;margin-bottom:9px}
+.msb{width:100%;padding:12px;border-radius:14px;font-size:13px;font-family:inherit;cursor:pointer;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);color:rgba(255,255,255,.5)}
+
+/* ── KEY SCREEN ── */
+.key-screen{position:fixed;inset:0;z-index:200;background:linear-gradient(160deg,#020810,#060d1a,#030810);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 28px;text-align:center}
+.key-screen.hidden{display:none}
+.klogo{font-family:'Orbitron',monospace;font-size:22px;font-weight:900;letter-spacing:2px;color:#7cf;text-shadow:0 0 20px rgba(120,200,255,.8);margin-bottom:4px}
+.ki{font-size:48px;margin-bottom:14px}
+.ktitle{font-family:'Orbitron',monospace;font-size:17px;font-weight:700;margin-bottom:7px}
+.kdesc{font-size:12px;color:rgba(255,255,255,.4);line-height:1.7;margin-bottom:24px;max-width:300px}
+.kdesc a{color:#7cf;text-decoration:none}
+.kiw{position:relative;width:100%;max-width:340px;margin-bottom:12px}
+.kinput{width:100%;padding:14px 44px 14px 15px;border-radius:13px;font-size:13px;font-family:inherit;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;outline:none}
+.kinput:focus{border-color:rgba(120,200,255,.4)}
+.kinput::placeholder{color:rgba(255,255,255,.2)}
+.ktoggle{position:absolute;right:13px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(255,255,255,.35);cursor:pointer;font-size:17px;padding:4px}
+.ksubmit{width:100%;max-width:340px;padding:14px;border-radius:13px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;border:none;background:linear-gradient(135deg,#0af,#46a);color:#fff;margin-bottom:14px}
+.kerr{font-size:11px;color:#ff6b6b;margin-bottom:10px;min-height:16px}
+.knote{font-size:10px;color:rgba(255,255,255,.18);line-height:1.6;max-width:280px}
+
+/* Phase dot colors */
+body[data-phase="wake"]      .s-dot{background:#7cf;box-shadow:0 0 8px #7cf}
+body[data-phase="listening"] .s-dot{background:#a78bfa;box-shadow:0 0 8px #a78bfa;animation:dotPulse 1s ease-in-out infinite}
+body[data-phase="thinking"]  .s-dot{background:#e040fb;box-shadow:0 0 8px #e040fb;animation:dotPulse 0.7s ease-in-out infinite}
+body[data-phase="streaming"] .s-dot{background:#0af;box-shadow:0 0 8px #0af;animation:dotPulse 0.5s ease-in-out infinite}
+body[data-phase="speaking"]  .s-dot{background:#0f9;box-shadow:0 0 8px #0f9;animation:dotPulse 0.8s ease-in-out infinite}
+body[data-phase="error"]     .s-dot{background:#f44;box-shadow:0 0 8px #f44}
+@keyframes dotPulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+@keyframes shimmer{0%{background-position:-200% center}100%{background-position:200% center}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── TEXT INPUT BAR — sits above bottom bar ── */
+#textBar{
+  position:absolute;bottom:108px;left:16px;right:16px;z-index:11;
+  display:none;align-items:center;gap:10px;
+  animation:slideUp 0.25s cubic-bezier(0.34,1.2,0.64,1);
+}
+#textInput{
+  flex:1;padding:13px 18px;border-radius:50px;font-size:14px;
+  font-family:inherit;background:rgba(3,9,22,0.85);
+  border:1px solid rgba(100,190,255,0.22);
+  border-top:1px solid rgba(100,190,255,0.35);
+  color:#fff;outline:none;caret-color:#7cf;
+  backdrop-filter:blur(12px);
+  box-shadow:0 4px 20px rgba(0,0,0,0.4);
+  transition:border-color 0.2s,box-shadow 0.2s;
+}
+#textInput:focus{border-color:rgba(0,180,255,0.5);box-shadow:0 0 20px rgba(0,120,255,0.2),0 4px 20px rgba(0,0,0,0.4);}
+#textInput::placeholder{color:rgba(255,255,255,0.2);}
+#textSend{
+  width:46px;height:46px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,rgba(0,160,255,0.9),rgba(20,70,200,0.9));
+  border:none;cursor:pointer;font-size:18px;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 20px rgba(0,140,255,0.4),0 0 40px rgba(0,80,200,0.2);
+  transition:transform 0.15s,box-shadow 0.15s;
+}
+#textSend:active{transform:scale(0.92);}
+#keyboardToggle{display:none;}
+
+/* ══════════════════════════════════
+   FUTURISTIC UI UPGRADE
+══════════════════════════════════ */
+
+/* Scan line removed — clean full screen */
+
+/* Header glow line */
+header::after{
+  content:'';display:block;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(120,200,255,0.4),rgba(120,200,255,0.15),transparent);
+  margin-top:10px;
+}
+
+/* Logo upgrade */
+.logo{
+  font-family:'Orbitron',monospace;font-size:16px;font-weight:900;
+  letter-spacing:3px;color:#fff;
+  text-shadow:0 0 12px rgba(120,200,255,0.7),0 0 30px rgba(120,200,255,0.3);
+}
+
+/* Icon buttons — futuristic hexagon-ish */
+.icon-btn{
+  width:36px;height:36px;border-radius:8px;
+  border:1px solid rgba(120,200,255,0.2);
+  background:rgba(10,25,50,0.6);
+  color:rgba(200,230,255,0.7);
+  font-size:15px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(8px);
+  box-shadow:0 0 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.07);
+  transition:all 0.2s;
+}
+.icon-btn:active{
+  background:rgba(120,200,255,0.15);
+  border-color:rgba(120,200,255,0.5);
+  box-shadow:0 0 16px rgba(120,200,255,0.3);
+}
+
+/* Status badge — sharp futuristic pill */
+.status-badge{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:5px 16px;border-radius:4px;
+  background:rgba(5,15,35,0.75);
+  border:1px solid rgba(120,200,255,0.2);
+  border-top:1px solid rgba(120,200,255,0.35);
+  font-size:10px;color:rgba(180,220,255,0.6);
+  backdrop-filter:blur(10px);letter-spacing:.1em;
+  text-transform:uppercase;
+  box-shadow:0 4px 20px rgba(0,0,0,0.4), 0 0 20px rgba(0,100,200,0.08);
+}
+
+/* Orb button — high-tech circle */
+#orbBtn{
+  width:68px;height:68px;border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,rgba(0,160,255,0.25),rgba(0,30,80,0.9));
+  border:1.5px solid rgba(120,200,255,0.5);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:26px;
+  box-shadow:
+    0 0 0 1px rgba(120,200,255,0.1),
+    0 0 25px rgba(0,120,255,0.3),
+    0 0 60px rgba(0,80,200,0.15),
+    inset 0 0 20px rgba(0,0,0,0.5),
+    inset 0 1px 0 rgba(255,255,255,0.12);
+  transition:all 0.3s;
+  backdrop-filter:blur(4px);
+}
+#orbBtn:active{
+  transform:scale(0.93);
+  box-shadow:0 0 40px rgba(0,180,255,0.5),inset 0 0 20px rgba(0,0,0,0.5);
+}
+#orbBtn.pulsing{
+  animation:orbPulse 2.5s ease-in-out infinite;
+}
+@keyframes orbPulse{
+  0%,100%{box-shadow:0 0 25px rgba(0,120,255,0.3),0 0 60px rgba(0,80,200,0.15),inset 0 0 20px rgba(0,0,0,0.5);}
+  50%{box-shadow:0 0 40px rgba(0,180,255,0.6),0 0 80px rgba(0,120,255,0.3),0 0 120px rgba(0,80,200,0.15),inset 0 0 20px rgba(0,0,0,0.5);}
+}
+
+/* Display text */
+.display-text{
+  font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.6;
+  color:rgba(200,225,255,0.85);min-height:44px;max-width:310px;
+  text-align:center;letter-spacing:0.02em;
+}
+.display-text.muted{color:rgba(150,185,220,0.35);}
+.stream-text{
+  font-size:11px;color:rgba(80,180,255,0.7);text-align:center;
+  min-height:16px;max-width:290px;font-style:italic;letter-spacing:0.03em;
+}
+
+/* Chat log upgrade */
+#chat{
+  background:rgba(2,8,20,0.75);
+  border:1px solid rgba(120,200,255,0.12);
+  border-top:1px solid rgba(120,200,255,0.22);
+  border-radius:12px;
+  backdrop-filter:blur(12px);
+  box-shadow:0 -4px 30px rgba(0,0,0,0.4);
+}
+.chat-lbl{
+  font-size:9px;text-transform:uppercase;letter-spacing:.12em;
+  color:rgba(120,180,255,0.35);margin-bottom:10px;
+  display:flex;justify-content:space-between;
+}
+.bb.user{
+  background:linear-gradient(135deg,rgba(0,60,160,0.8),rgba(20,40,120,0.7));
+  border:1px solid rgba(80,140,255,0.25);
+  border-radius:14px 14px 3px 14px;
+}
+.bb.bot{
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(120,200,255,0.1);
+  border-radius:14px 14px 14px 3px;
+}
+
+/* Panel upgrade */
+.panel{
+  background:linear-gradient(160deg,rgba(4,10,24,0.97),rgba(6,14,30,0.97));
+  border:1px solid rgba(120,200,255,0.15);
+  border-top:1px solid rgba(120,200,255,0.3);
+  border-radius:20px 20px 0 0;
+  box-shadow:0 -10px 60px rgba(0,0,0,0.7), 0 0 40px rgba(0,60,160,0.1);
+}
+.pt{
+  font-family:'Orbitron',monospace;font-size:13px;font-weight:700;
+  letter-spacing:2px;color:rgba(100,200,255,0.9);
+  text-shadow:0 0 12px rgba(100,200,255,0.4);
+}
+.si{
+  background:rgba(5,15,35,0.8);
+  border:1px solid rgba(120,200,255,0.15);
+  border-top:1px solid rgba(120,200,255,0.25);
+}
+.si:focus{border-color:rgba(120,200,255,0.5);box-shadow:0 0 12px rgba(0,120,255,0.2);}
+.psave{
+  background:linear-gradient(135deg,rgba(0,160,255,0.9),rgba(30,80,200,0.9));
+  border:none;
+  box-shadow:0 4px 20px rgba(0,120,255,0.3), 0 0 40px rgba(0,80,200,0.15);
+}
+
+/* Text input bar upgrade */
+#textInput{
+  background:rgba(3,10,25,0.8);
+  border:1px solid rgba(120,200,255,0.2);
+  border-top:1px solid rgba(120,200,255,0.3);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.04);
+}
+#textInput:focus{
+  border-color:rgba(0,180,255,0.5);
+  box-shadow:0 0 20px rgba(0,120,255,0.2),inset 0 1px 0 rgba(255,255,255,0.04);
+}
+#textSend{
+  background:linear-gradient(135deg,rgba(0,160,255,0.9),rgba(20,70,200,0.9));
+  box-shadow:0 0 20px rgba(0,140,255,0.4), 0 0 40px rgba(0,80,200,0.2);
+}
+
+/* Speech bubble upgrade */
+#bubble{
+  background:rgba(3,10,28,0.95);
+  border:1px solid rgba(80,180,255,0.3);
+  border-left:2px solid rgba(0,180,255,0.6);
+  box-shadow:0 4px 20px rgba(0,0,0,0.5), 0 0 20px rgba(0,80,200,0.15);
+  border-radius:12px 12px 12px 3px;
+  font-size:12px;color:rgba(200,230,255,0.92);
+}
+
+/* Astro SVG outer glow upgrade — phase-aware */
+body[data-phase="wake"]      #astro-svg{filter:drop-shadow(0 0 20px rgba(80,180,255,0.35)) drop-shadow(0 25px 45px rgba(0,0,0,0.6));}
+body[data-phase="listening"] #astro-svg{filter:drop-shadow(0 0 28px rgba(160,120,255,0.5)) drop-shadow(0 25px 45px rgba(0,0,0,0.6));}
+body[data-phase="thinking"]  #astro-svg{filter:drop-shadow(0 0 28px rgba(200,80,255,0.45)) drop-shadow(0 25px 45px rgba(0,0,0,0.6));}
+body[data-phase="speaking"]  #astro-svg{filter:drop-shadow(0 0 28px rgba(40,220,150,0.45)) drop-shadow(0 25px 45px rgba(0,0,0,0.6));}
+body[data-phase="streaming"] #astro-svg{filter:drop-shadow(0 0 24px rgba(0,180,255,0.4))  drop-shadow(0 25px 45px rgba(0,0,0,0.6));}
+body[data-phase="error"]     #astro-svg{filter:drop-shadow(0 0 24px rgba(255,60,60,0.45))  drop-shadow(0 25px 45px rgba(0,0,0,0.6));}
+
+/* Thruster upgrade */
+.thruster{
+  position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);
+  width:100px;height:28px;
+  background:radial-gradient(ellipse,rgba(0,200,255,0.5),rgba(0,100,255,0.2) 50%,transparent 80%);
+  filter:blur(6px);
+  animation:thrustPulse 5s ease-in-out infinite;
+}
+.thruster::after{
+  content:'';position:absolute;inset:6px 20px;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(255,255,255,0.6),transparent 70%);
+  animation:thrustCore 2.5s ease-in-out infinite;
+}
+@keyframes thrustPulse{
+  0%  {opacity:.25;transform:translateX(-50%) scaleX(0.7) scaleY(0.7);}
+  30% {opacity:.65;transform:translateX(-50%) scaleX(1.15) scaleY(1.1);}
+  55% {opacity:.4; transform:translateX(-50%) scaleX(0.95) scaleY(0.9);}
+  80% {opacity:.7; transform:translateX(-50%) scaleX(1.2) scaleY(1.15);}
+  100%{opacity:.25;transform:translateX(-50%) scaleX(0.7) scaleY(0.7);}
+}
+@keyframes thrustCore{0%,100%{opacity:.3;}50%{opacity:.85;}}
+
+/* Key screen upgrade */
+.key-screen{
+  background:radial-gradient(ellipse at 50% 40%, #060e22 0%, #030810 50%, #010408 100%) !important;
+}
+
+/* Orb state color shifts */
+#orbBtn.orb-thinking::before{background:conic-gradient(rgba(180,80,255,0.7) 0deg,rgba(120,40,220,0.4) 120deg,rgba(180,80,255,0.2) 240deg,rgba(180,80,255,0.7) 360deg);animation:ringRotate 1.5s linear infinite;}
+#orbBtn.orb-speaking::before{background:conic-gradient(rgba(40,220,150,0.7) 0deg,rgba(20,180,100,0.4) 120deg,rgba(40,220,150,0.2) 240deg,rgba(40,220,150,0.7) 360deg);animation:ringRotate 1s linear infinite;}
+#orbBtn.orb-error::before{background:conic-gradient(rgba(255,60,60,0.7) 0deg,rgba(200,20,20,0.4) 120deg,rgba(255,60,60,0.2) 240deg,rgba(255,60,60,0.7) 360deg);animation:ringRotate 3s linear infinite;}
+body[data-phase="listening"] #orbBtn svg,body[data-phase="wake"] #orbBtn svg{fill:rgba(100,200,255,0.95);}
+body[data-phase="thinking"] #orbBtn svg,body[data-phase="streaming"] #orbBtn svg{fill:rgba(200,100,255,0.95);}
+body[data-phase="speaking"] #orbBtn svg{fill:rgba(40,220,150,0.95);}
+body[data-phase="error"] #orbBtn svg{fill:rgba(255,100,100,0.95);}
+
+/* ── CORNER BUTTONS ── */
+.corner-btns{
+  position:absolute;bottom:28px;right:16px;z-index:20;
+  display:flex;flex-direction:column;gap:7px;align-items:center;
+}
+.corner-btns .icon-btn{
+  width:28px;height:28px;border-radius:8px;font-size:12px;
+  opacity:0.6;
+}
+.corner-btns .icon-btn:active{opacity:1;}
+
+/* Hide status text when chat panel is open to avoid overlay */
+#chat.open ~ * .display-text,
+body.chat-open .display-text,
+body.chat-open .stream-text,
+body.chat-open .interim{
+  opacity:0;pointer-events:none;
+}
+/* Shrink chat bubbles for compact panel */
+#chat .bb{
+  font-size:11px;padding:6px 9px;margin-bottom:5px;
+}
+#chat .chat-lbl{
+  font-size:9px;margin-bottom:7px;
+}
+
+/* ZG drift — wrap handles position & rotation, SVG handles float */
+#astro-wrap{transform-origin: 105px 135px;}
+
+/* ── CLOSE-UP DETAIL LAYER ── */
+/* Extra SVG details that only appear when zoomed close */
+.detail-close {
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+body[data-phase="listening"] .detail-close,
+body[data-phase="thinking"]  .detail-close,
+body[data-phase="streaming"] .detail-close,
+body[data-phase="speaking"]  .detail-close {
+  opacity: 1;
+}
+
+/* ── 3D TUMBLE ── */
+#astro-wrap { transform-style: preserve-3d; }
+#autoBody   { transform-style: preserve-3d; backface-visibility: visible; }
+#auto-back  {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  display: none;   /* shown via JS when facing away */
+  pointer-events: none;
+}
+</style>
+</head>
+<body data-phase="setup">
+
+<!-- Space background -->
+<div id="space">
+  <canvas id="starCanvas"></canvas>
+  <!-- nebulas rendered on canvas -->
+</div>
+
+<div id="app">
+  <!-- Header -->
+  <header>
+    <div class="logo">AUTO<span>AI</span></div>
+  </header>
+
+  <!-- Bottom right action buttons -->
+  <div class="corner-btns">
+    <button class="icon-btn" onclick="toggleTextBar()" id="keyboardToggle" title="Type instead">⌨️</button>
+    <button class="icon-btn" onclick="openHistory()">📋</button>
+    <button class="icon-btn" onclick="openSettings()">⚙️</button>
+  </div>
+
+  <!-- Status badge — floats above bottom bar -->
+  <div class="status-wrap" id="statusWrap" style="visibility:hidden">
+    <div class="status-badge"><div class="s-dot" id="sDot"></div><span id="sLabel">Ready</span></div>
+  </div>
+
+  <!-- Astronaut stage — full screen -->
+  <div id="stage">
+    <div id="astro-wrap">
+      <!-- Speech bubble -->
+      <div id="bubble"></div>
+
+      <!-- Thruster glow -->
+      <div class="thruster"></div>
+
+      <!-- SVG Astronaut - chibi white suit -->
+      <svg id="astro-svg" viewBox="0 0 220 300" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">
+<defs>
+  <!-- ── Suit: warm white sphere shading ── -->
+  <radialGradient id="sg" cx="36%" cy="26%" r="72%">
+    <stop offset="0%"   stop-color="#ffffff"/>
+    <stop offset="28%"  stop-color="#f0f5fa"/>
+    <stop offset="62%"  stop-color="#d6e6f2"/>
+    <stop offset="84%"  stop-color="#b4cadc"/>
+    <stop offset="100%" stop-color="#88acca"/>
+  </radialGradient>
+  <!-- ── Helmet dome: cooler blue-white ── -->
+  <radialGradient id="hg" cx="34%" cy="24%" r="70%">
+    <stop offset="0%"   stop-color="#ffffff"/>
+    <stop offset="22%"  stop-color="#f2f7fc"/>
+    <stop offset="52%"  stop-color="#daeaf6"/>
+    <stop offset="78%"  stop-color="#bcd4ea"/>
+    <stop offset="100%" stop-color="#8eb4ce"/>
+  </radialGradient>
+  <!-- ── Visor: deep space blue ── -->
+  <radialGradient id="vg" cx="34%" cy="26%" r="68%">
+    <stop offset="0%"   stop-color="#2a4a7c"/>
+    <stop offset="32%"  stop-color="#0c1e42"/>
+    <stop offset="68%"  stop-color="#040e22"/>
+    <stop offset="100%" stop-color="#010710"/>
+  </radialGradient>
+  <!-- ── Visor reflection: top-left diagonal streak ── -->
+  <linearGradient id="vr1" x1="8%" y1="4%" x2="58%" y2="52%">
+    <stop offset="0%"   stop-color="rgba(255,255,255,0.62)"/>
+    <stop offset="42%"  stop-color="rgba(255,255,255,0.12)"/>
+    <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+  </linearGradient>
+  <!-- ── Visor reflection: bottom-right bounce ── -->
+  <linearGradient id="vr2" x1="82%" y1="82%" x2="42%" y2="48%">
+    <stop offset="0%"   stop-color="rgba(70,155,255,0.18)"/>
+    <stop offset="100%" stop-color="rgba(70,155,255,0)"/>
+  </linearGradient>
+  <!-- ── Glove: rubberised dark ── -->
+  <radialGradient id="gg" cx="30%" cy="24%" r="70%">
+    <stop offset="0%"   stop-color="#ccd8e5"/>
+    <stop offset="55%"  stop-color="#95aec5"/>
+    <stop offset="100%" stop-color="#648498"/>
+  </radialGradient>
+  <!-- ── Boot sole: dark rubber ── -->
+  <linearGradient id="bs" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%"   stop-color="#5e7688"/>
+    <stop offset="100%" stop-color="#2c3e50"/>
+  </linearGradient>
+  <!-- ── Body side shadow: L and R ── -->
+  <linearGradient id="ssl" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%"  stop-color="rgba(28,58,100,0.38)"/>
+    <stop offset="42%" stop-color="rgba(28,58,100,0)"/>
+  </linearGradient>
+  <linearGradient id="ssr" x1="100%" y1="0%" x2="0%" y2="0%">
+    <stop offset="0%"  stop-color="rgba(28,58,100,0.28)"/>
+    <stop offset="42%" stop-color="rgba(28,58,100,0)"/>
+  </linearGradient>
+  <!-- ── Panel glow ── -->
+  <radialGradient id="pg" cx="50%" cy="38%" r="62%">
+    <stop offset="0%"   stop-color="#58befc"/>
+    <stop offset="100%" stop-color="#0e3ea0"/>
+  </radialGradient>
+  <!-- ── Thruster flame ── -->
+  <radialGradient id="tg" cx="50%" cy="0%" r="100%">
+    <stop offset="0%"   stop-color="rgba(120,220,255,0.96)"/>
+    <stop offset="38%"  stop-color="rgba(40,140,255,0.70)"/>
+    <stop offset="100%" stop-color="rgba(0,55,200,0)"/>
+  </radialGradient>
+  <!-- ── Filters ── -->
+  <filter id="sh" x="-18%" y="-12%" width="136%" height="136%">
+    <feDropShadow dx="0" dy="9" stdDeviation="13" flood-color="rgba(0,8,28,0.58)"/>
+  </filter>
+  <filter id="gl">
+    <feGaussianBlur stdDeviation="2.8" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="gls">
+    <feGaussianBlur stdDeviation="5" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+</defs>
+
+<!-- ══ THRUSTER FLAMES (rendered behind body) ══ -->
+<g id="thrusters" opacity="0">
+  <ellipse id="thrustLOuter" cx="84"  cy="268" rx="7" ry="10" fill="url(#tg)" opacity="0.88"/>
+  <ellipse id="thrustLCore"  cx="84"  cy="263" rx="3.2" ry="5" fill="rgba(255,255,255,0.92)"/>
+  <ellipse id="thrustROuter" cx="136" cy="268" rx="7" ry="10" fill="url(#tg)" opacity="0.88"/>
+  <ellipse id="thrustRCore"  cx="136" cy="263" rx="3.2" ry="5" fill="rgba(255,255,255,0.92)"/>
+</g>
+
+<!-- ══ PARTICLE SYSTEM ══ -->
+<g id="particles"/>
+
+<!-- ══ BODY — full 3D astronaut ══ -->
+<g id="autoBody" class="float-anim" style="transform-origin:110px 152px">
+
+  <!-- ╔══════════════════╗
+       ║  TORSO           ║
+       ╚══════════════════╝ -->
+  <g id="chestBreath" style="transform-origin:110px 178px">
+    <!-- Base form -->
+    <path d="M 80 148 C 72 148 65 155 64 165
+             L 62 226 C 62 234 68 240 76 240
+             L 144 240 C 152 240 158 234 158 226
+             L 156 165 C 155 155 148 148 140 148 Z"
+          fill="url(#sg)" filter="url(#sh)"/>
+    <!-- Side shadow L -->
+    <path d="M 80 148 C 72 148 65 155 64 165
+             L 62 226 C 62 234 68 240 76 240 L 98 240 L 96 148 Z"
+          fill="url(#ssl)" opacity="0.85"/>
+    <!-- Side shadow R -->
+    <path d="M 140 148 C 148 148 155 155 156 165
+             L 158 226 C 158 234 152 240 144 240 L 122 240 L 124 148 Z"
+          fill="url(#ssr)" opacity="0.85"/>
+    <!-- Torso top highlight -->
+    <ellipse cx="106" cy="156" rx="26" ry="8" fill="rgba(255,255,255,0.22)" transform="rotate(-5,106,156)"/>
+    <!-- Horizontal form lines -->
+    <path d="M 68 180 Q 110 185 152 180" stroke="rgba(138,166,192,0.22)" stroke-width="1" fill="none"/>
+    <path d="M 66 205 Q 110 209 154 205" stroke="rgba(138,166,192,0.18)" stroke-width="1" fill="none"/>
+    <!-- Vertical crease L -->
+    <path d="M 72 152 C 70 172 70 206 72 232" stroke="rgba(95,135,165,0.24)" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    <!-- Vertical crease R -->
+    <path d="M 148 152 C 150 172 150 206 148 232" stroke="rgba(95,135,165,0.22)" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    <!-- Centre seam -->
+    <line x1="110" y1="150" x2="110" y2="238" stroke="rgba(136,166,192,0.2)" stroke-width="0.9" stroke-dasharray="4,7"/>
+
+    <!-- ╔══════════════════╗
+         ║  CHEST PANEL     ║
+         ╚══════════════════╝ -->
+    <rect x="82" y="160" width="56" height="48" rx="10" fill="rgba(148,185,215,0.42)" stroke="rgba(112,162,205,0.62)" stroke-width="1.3"/>
+    <!-- Panel inset -->
+    <rect x="85" y="163" width="50" height="42" rx="8"  fill="rgba(6,14,36,0.34)"/>
+    <!-- Screen -->
+    <rect x="87" y="166" width="30" height="18" rx="4.5" fill="url(#pg)" opacity="0.9"/>
+    <!-- Screen scanlines -->
+    <line x1="88" y1="170" x2="116" y2="170" stroke="rgba(175,228,255,0.2)"  stroke-width="0.7"/>
+    <line x1="88" y1="174" x2="116" y2="174" stroke="rgba(175,228,255,0.15)" stroke-width="0.7"/>
+    <line x1="88" y1="178" x2="116" y2="178" stroke="rgba(175,228,255,0.1)"  stroke-width="0.7"/>
+    <!-- Screen glare -->
+    <path d="M 88 167 L 102 167 L 97 173 L 87 173 Z" fill="rgba(255,255,255,0.18)"/>
+    <!-- LEDs -->
+    <circle id="led1" cx="124" cy="169" r="3.2" fill="rgba(38,225,98,0.95)"  filter="url(#gl)">
+      <animate attributeName="opacity" values="1;0.3;1" dur="2.1s" repeatCount="indefinite"/>
+    </circle>
+    <circle id="led2" cx="133" cy="169" r="3.2" fill="rgba(255,198,38,0.95)" filter="url(#gl)">
+      <animate attributeName="opacity" values="0.4;1;0.4" dur="1.7s" repeatCount="indefinite"/>
+    </circle>
+    <circle id="led3" cx="124" cy="178" r="2.8" fill="rgba(75,178,255,0.92)" filter="url(#gl)">
+      <animate attributeName="opacity" values="1;0.2;1" dur="3.0s" repeatCount="indefinite"/>
+    </circle>
+    <!-- Buttons -->
+    <rect x="87"  y="189" width="11" height="7" rx="3" fill="rgba(186,210,230,0.72)" stroke="rgba(135,172,205,0.5)" stroke-width="0.7"/>
+    <rect x="101" y="189" width="11" height="7" rx="3" fill="rgba(186,210,230,0.72)" stroke="rgba(135,172,205,0.5)" stroke-width="0.7"/>
+    <rect x="115" y="189" width="11" height="7" rx="3" fill="rgba(186,210,230,0.72)" stroke="rgba(135,172,205,0.5)" stroke-width="0.7"/>
+    <!-- Panel top specular -->
+    <rect x="83" y="161" width="54" height="3.5" rx="2" fill="rgba(255,255,255,0.15)"/>
+  </g><!-- /chestBreath -->
+
+  <!-- PLSS backpack (side-peek right) -->
+  <rect x="152" y="154" width="17" height="56" rx="7.5" fill="url(#sg)" stroke="rgba(122,155,182,0.55)" stroke-width="1.2"/>
+  <rect x="154" y="160" width="13" height="15" rx="4"   fill="rgba(8,18,42,0.3)"   stroke="rgba(80,138,195,0.38)" stroke-width="0.7"/>
+  <circle cx="160" cy="183" r="4"  fill="rgba(72,182,255,0.55)" stroke="rgba(120,215,255,0.55)" stroke-width="0.9"/>
+  <circle cx="160" cy="193" r="4"  fill="rgba(72,182,255,0.55)" stroke="rgba(120,215,255,0.55)" stroke-width="0.9"/>
+  <path d="M 154 157 Q 152 163 152 170" stroke="rgba(255,255,255,0.26)" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+
+  <!-- ╔══════════════════╗
+       ║  NECK RING       ║
+       ╚══════════════════╝ -->
+  <ellipse cx="110" cy="150" rx="23" ry="7.5" fill="rgba(85,115,148,0.38)"/>
+  <ellipse cx="110" cy="149" rx="22" ry="7"   fill="#bac9d8" stroke="rgba(122,155,182,0.72)" stroke-width="1.5"/>
+  <ellipse cx="110" cy="148" rx="19" ry="5.2" fill="#ccd8e5"/>
+  <circle cx="90"  cy="149" r="2.4" fill="#90aabf" stroke="rgba(115,148,175,0.65)" stroke-width="0.7"/>
+  <circle cx="130" cy="149" r="2.4" fill="#90aabf" stroke="rgba(115,148,175,0.65)" stroke-width="0.7"/>
+  <ellipse cx="110" cy="145" rx="13" ry="3.2" fill="rgba(255,255,255,0.3)"/>
+
+  <!-- ╔══════════════════╗
+       ║  HELMET          ║
+       ╚══════════════════╝ -->
+  <g id="helmetGroup" style="transform-origin:110px 96px">
+    <!-- Ground shadow -->
+    <ellipse cx="112" cy="112" rx="48" ry="12" fill="rgba(55,85,130,0.16)"/>
+    <!-- Main dome -->
+    <ellipse cx="110" cy="96" rx="52" ry="55" fill="url(#hg)" filter="url(#sh)"/>
+    <!-- Left shadow band -->
+    <path d="M 58 96 C 58 68 72 46 110 42 C 80 42 60 66 60 96 Z"
+          fill="rgba(55,88,130,0.18)"/>
+    <!-- Right shadow band -->
+    <path d="M 162 96 C 162 68 148 46 110 42 C 140 42 160 66 160 96 Z"
+          fill="rgba(55,88,130,0.12)"/>
+    <!-- Top specular highlight -->
+    <ellipse cx="98" cy="64" rx="28" ry="16" fill="rgba(255,255,255,0.26)" transform="rotate(-14,98,64)"/>
+    <!-- Secondary highlight -->
+    <ellipse cx="92" cy="56" rx="13" ry="7"  fill="rgba(255,255,255,0.16)" transform="rotate(-18,92,56)"/>
+    <!-- Equator seam -->
+    <path d="M 60 105 Q 110 112 160 105" stroke="rgba(136,165,194,0.44)" stroke-width="1.1" fill="none"/>
+
+    <!-- Side vent LEFT -->
+    <ellipse cx="60" cy="105" rx="9" ry="11" fill="url(#sg)" stroke="rgba(122,155,182,0.65)" stroke-width="1.4"/>
+    <line x1="55" y1="100" x2="65" y2="100" stroke="rgba(102,140,166,0.55)" stroke-width="1"/>
+    <line x1="55" y1="104" x2="65" y2="104" stroke="rgba(102,140,166,0.55)" stroke-width="1"/>
+    <line x1="55" y1="108" x2="65" y2="108" stroke="rgba(102,140,166,0.55)" stroke-width="1"/>
+    <line x1="56" y1="112" x2="65" y2="112" stroke="rgba(102,140,166,0.4)"  stroke-width="1"/>
+    <!-- Side vent RIGHT -->
+    <ellipse cx="160" cy="105" rx="9" ry="11" fill="url(#sg)" stroke="rgba(122,155,182,0.65)" stroke-width="1.4"/>
+    <line x1="155" y1="100" x2="165" y2="100" stroke="rgba(102,140,166,0.55)" stroke-width="1"/>
+    <line x1="155" y1="104" x2="165" y2="104" stroke="rgba(102,140,166,0.55)" stroke-width="1"/>
+    <line x1="155" y1="108" x2="165" y2="108" stroke="rgba(102,140,166,0.55)" stroke-width="1"/>
+    <line x1="155" y1="112" x2="164" y2="112" stroke="rgba(102,140,166,0.4)"  stroke-width="1"/>
+
+    <!-- Antenna -->
+    <line x1="110" y1="42" x2="118" y2="20" stroke="#b2c7d8" stroke-width="2.4" stroke-linecap="round"/>
+    <circle cx="118" cy="18" r="5" fill="rgba(78,208,255,0.95)" stroke="rgba(196,240,255,0.9)" stroke-width="1.3" filter="url(#gl)">
+      <animate attributeName="r"       values="5;6.5;5"   dur="2.2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.95;0.35;0.95" dur="2.2s" repeatCount="indefinite"/>
+    </circle>
+
+    <!-- ╔══════════════════╗
+         ║  VISOR           ║
+         ╚══════════════════╝ -->
+    <!-- Outer bezel shadow -->
+    <ellipse cx="110" cy="102" rx="40" ry="37" fill="rgba(6,13,34,0.56)"/>
+    <!-- Visor glass -->
+    <ellipse id="visorBg" cx="110" cy="100" rx="38" ry="35" fill="url(#vg)"/>
+    <!-- Reflections -->
+    <ellipse cx="110" cy="100" rx="38" ry="35" fill="url(#vr1)"/>
+    <ellipse cx="110" cy="100" rx="38" ry="35" fill="url(#vr2)"/>
+    <!-- Bezel ring outer -->
+    <ellipse cx="110" cy="100" rx="38" ry="35" fill="none" stroke="#9ab8d2" stroke-width="3"/>
+    <!-- Bezel ring inner highlight -->
+    <ellipse cx="110" cy="100" rx="38" ry="35" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="0.9"/>
+    <!-- Depth ring -->
+    <ellipse cx="110" cy="100" rx="34" ry="31" fill="none" stroke="rgba(55,118,200,0.18)" stroke-width="1.6"/>
+    <!-- Primary reflection blob -->
+    <ellipse cx="94"  cy="84"  rx="16" ry="9"  fill="rgba(255,255,255,0.2)"  transform="rotate(-24,94,84)"/>
+    <!-- Subtle bounce reflection -->
+    <ellipse cx="130" cy="116" rx="7"  ry="4.5" fill="rgba(72,155,255,0.13)" transform="rotate(12,130,116)"/>
+    <!-- Scanning line (ambient atmosphere) -->
+    <ellipse cx="110" cy="100" rx="36" ry="2.5" fill="rgba(95,198,255,0.06)">
+      <animateTransform attributeName="transform" type="translate" values="0,-33;0,33;0,-33" dur="3.8s" repeatCount="indefinite"/>
+    </ellipse>
+
+    <!-- ╔══════════════════╗
+         ║  FACES           ║
+         ╚══════════════════╝ -->
+    <!-- HAPPY (default) -->
+    <g id="face-happy">
+      <circle cx="94"  cy="96" r="8"   fill="#46c8ff" opacity="0.95" filter="url(#gl)"/>
+      <circle cx="126" cy="96" r="8"   fill="#46c8ff" opacity="0.95" filter="url(#gl)"/>
+      <!-- Highlights -->
+      <circle cx="97"  cy="92" r="3.2" fill="rgba(255,255,255,0.92)"/>
+      <circle cx="129" cy="92" r="3.2" fill="rgba(255,255,255,0.92)"/>
+      <!-- Pupils (JS moves these) -->
+      <circle id="pupilL" cx="94"  cy="97" r="3.2" fill="rgba(0,22,66,0.65)"/>
+      <circle id="pupilR" cx="126" cy="97" r="3.2" fill="rgba(0,22,66,0.65)"/>
+      <!-- Eyelids for blink (JS animates height) -->
+      <rect id="blinkL" x="86" y="104" width="16" height="0" rx="8" fill="#080e22"/>
+      <rect id="blinkR" x="118" y="104" width="16" height="0" rx="8" fill="#080e22"/>
+      <!-- Smile -->
+      <path d="M 91 115 Q 110 128 129 115" stroke="#46c8ff" stroke-width="3.2" fill="none" stroke-linecap="round" opacity="0.9"/>
+    </g>
+
+    <!-- THINKING -->
+    <g id="face-thinking" style="display:none">
+      <ellipse cx="94"  cy="95" rx="8"   ry="5"   fill="#c452ee" opacity="0.92" filter="url(#gl)"/>
+      <ellipse cx="126" cy="94" rx="8"   ry="5"   fill="#c452ee" opacity="0.92" filter="url(#gl)"/>
+      <circle cx="97"   cy="93" r="2.8" fill="rgba(255,255,255,0.85)"/>
+      <circle cx="129"  cy="92" r="2.8" fill="rgba(255,255,255,0.85)"/>
+      <path d="M 91 112 Q 100 108 110 112 Q 120 116 129 112" stroke="#c452ee" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.88"/>
+      <path d="M 87 86 Q 94 82 101 86" stroke="#c452ee" stroke-width="2.2" fill="none" stroke-linecap="round" opacity="0.62"/>
+      <path d="M 119 85 Q 126 81 133 85" stroke="#c452ee" stroke-width="2.2" fill="none" stroke-linecap="round" opacity="0.62"/>
+      <circle cx="138" cy="74" r="2.8" fill="#c452ee" opacity="0.7" filter="url(#gl)"><animate attributeName="cy" values="74;67;74" dur="1.5s" repeatCount="indefinite"/></circle>
+      <circle cx="144" cy="65" r="2" fill="#c452ee" opacity="0.5" filter="url(#gl)"><animate attributeName="cy" values="65;58;65" dur="1.5s" begin="0.2s" repeatCount="indefinite"/></circle>
+      <circle cx="149" cy="57" r="1.3" fill="#c452ee" opacity="0.3" filter="url(#gl)"><animate attributeName="cy" values="57;50;57" dur="1.5s" begin="0.4s" repeatCount="indefinite"/></circle>
+    </g>
+
+    <!-- LISTENING -->
+    <g id="face-listening" style="display:none">
+      <circle cx="94"  cy="95" r="10"  fill="#8858f4" opacity="0.95" filter="url(#gl)"/>
+      <circle cx="126" cy="95" r="10"  fill="#8858f4" opacity="0.95" filter="url(#gl)"/>
+      <circle cx="98"  cy="91" r="4.2" fill="rgba(255,255,255,0.92)"/>
+      <circle cx="130" cy="91" r="4.2" fill="rgba(255,255,255,0.92)"/>
+      <ellipse cx="110" cy="115" rx="7.5" ry="6" fill="none" stroke="#8858f4" stroke-width="3" opacity="0.9"/>
+      <circle cx="110" cy="100" r="36" fill="none" stroke="rgba(136,88,244,0.14)" stroke-width="2"><animate attributeName="r" values="34;46;34" dur="1.7s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.4;0;0.4" dur="1.7s" repeatCount="indefinite"/></circle>
+      <circle cx="110" cy="100" r="42" fill="none" stroke="rgba(136,88,244,0.08)" stroke-width="1.5"><animate attributeName="r" values="40;54;40" dur="1.7s" begin="0.3s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.3;0;0.3" dur="1.7s" begin="0.3s" repeatCount="indefinite"/></circle>
+    </g>
+
+    <!-- SPEAKING -->
+    <g id="face-speaking" style="display:none">
+      <circle cx="94"  cy="95" r="8" fill="#26d89e" opacity="0.92" filter="url(#gl)"/>
+      <circle cx="126" cy="95" r="8" fill="#26d89e" opacity="0.92" filter="url(#gl)"/>
+      <circle cx="97"  cy="91" r="3.2" fill="rgba(255,255,255,0.9)"/>
+      <circle cx="129" cy="91" r="3.2" fill="rgba(255,255,255,0.9)"/>
+      <ellipse id="talkMouth" cx="110" cy="116" rx="10" ry="7" fill="none" stroke="#26d89e" stroke-width="3" opacity="0.92"/>
+      <g transform="translate(110,132)">
+        <rect id="bar1" x="-14" y="-3" width="5" height="6"  rx="2.5" fill="#26d89e" opacity="0.7"/>
+        <rect id="bar2" x="-7"  y="-4" width="5" height="8"  rx="2.5" fill="#26d89e" opacity="0.82"/>
+        <rect id="bar3" x="2"   y="-5" width="5" height="10" rx="2.5" fill="#26d89e" opacity="0.92"/>
+        <rect id="bar4" x="9"   y="-4" width="5" height="8"  rx="2.5" fill="#26d89e" opacity="0.82"/>
+      </g>
+    </g>
+
+    <!-- EXCITED -->
+    <g id="face-excited" style="display:none">
+      <text x="94"  y="105" font-size="17" fill="#ffd800" text-anchor="middle" filter="url(#gls)" opacity="0.96">★</text>
+      <text x="126" y="105" font-size="17" fill="#ffd800" text-anchor="middle" filter="url(#gls)" opacity="0.96">★</text>
+      <path d="M 90 120 Q 110 135 130 120" stroke="#ffd800" stroke-width="3.5" fill="none" stroke-linecap="round" opacity="0.92"/>
+      <g filter="url(#gls)">
+        <text x="74"  y="82"  font-size="10" fill="#ffd800" opacity="0.8">✦</text>
+        <text x="140" y="80"  font-size="9"  fill="#ffd800" opacity="0.7">✦</text>
+        <text x="82"  y="126" font-size="8"  fill="#ffd800" opacity="0.62">✦</text>
+      </g>
+    </g>
+
+    <!-- ERROR -->
+    <g id="face-error" style="display:none">
+      <ellipse cx="94"  cy="97" rx="8" ry="5"  fill="#ff4040" opacity="0.92"/>
+      <ellipse cx="126" cy="97" rx="8" ry="5"  fill="#ff4040" opacity="0.92"/>
+      <circle cx="97"   cy="95" r="2.8" fill="rgba(255,255,255,0.78)"/>
+      <circle cx="129"  cy="95" r="2.8" fill="rgba(255,255,255,0.78)"/>
+      <path d="M 91 118 Q 110 110 129 118" stroke="#ff4040" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.9"/>
+      <ellipse cx="140" cy="82" rx="2.8" ry="4" fill="rgba(95,182,255,0.72)"><animate attributeName="cy" values="82;94;82" dur="1.1s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.72;0;0.72" dur="1.1s" repeatCount="indefinite"/></ellipse>
+    </g>
+
+    <!-- DRIFT (:O face) -->
+    <g id="face-drift" style="display:none">
+      <circle cx="94"  cy="93" r="11" fill="#46c8ff" opacity="0.96" filter="url(#gls)"/>
+      <circle cx="126" cy="93" r="11" fill="#46c8ff" opacity="0.96" filter="url(#gls)"/>
+      <circle cx="99"  cy="88" r="4.8" fill="rgba(255,255,255,0.95)"/>
+      <circle cx="131" cy="88" r="4.8" fill="rgba(255,255,255,0.95)"/>
+      <circle cx="96"  cy="94" r="4.5" fill="rgba(0,18,58,0.72)"/>
+      <circle cx="128" cy="94" r="4.5" fill="rgba(0,18,58,0.72)"/>
+      <ellipse cx="110" cy="118" rx="12" ry="10" fill="rgba(0,12,36,0.75)" stroke="#46c8ff" stroke-width="3" opacity="0.96"/>
+      <ellipse cx="110" cy="120" rx="8"  ry="6.5" fill="rgba(0,0,0,0.52)"/>
+    </g>
+
+    <!-- ╔══════════════════╗
+         ║  CLOSE-UP DETAIL ║
+         ╚══════════════════╝ -->
+    <g class="detail-close">
+      <!-- HUD corner brackets -->
+      <path d="M 76 68 L 76 76 M 76 68 L 84 68" stroke="rgba(78,198,255,0.5)"  stroke-width="1.3" fill="none" stroke-linecap="round"/>
+      <path d="M 144 68 L 144 76 M 144 68 L 136 68" stroke="rgba(78,198,255,0.5)" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+      <path d="M 76 132 L 76 124 M 76 132 L 84 132" stroke="rgba(78,198,255,0.5)" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+      <path d="M 144 132 L 144 124 M 144 132 L 136 132" stroke="rgba(78,198,255,0.5)" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+      <!-- Visor scratches -->
+      <line x1="86"  y1="74" x2="95"  y2="86"  stroke="rgba(255,255,255,0.07)" stroke-width="0.7"/>
+      <line x1="95"  y1="70" x2="102" y2="81"  stroke="rgba(255,255,255,0.05)" stroke-width="0.6"/>
+      <line x1="122" y1="76" x2="132" y2="89"  stroke="rgba(255,255,255,0.06)" stroke-width="0.6"/>
+      <!-- Inner visor rim glow -->
+      <ellipse cx="110" cy="100" rx="34" ry="31" fill="none" stroke="rgba(78,178,255,0.14)" stroke-width="2.2"/>
+      <!-- Dust specks -->
+      <circle cx="100" cy="76"  r="0.8" fill="rgba(255,255,255,0.35)"/>
+      <circle cx="132" cy="108" r="0.9" fill="rgba(255,255,255,0.28)"/>
+      <circle cx="84"  cy="118" r="0.7" fill="rgba(255,255,255,0.24)"/>
+    </g>
+  </g><!-- /helmetGroup -->
+
+  <!-- ╔══════════════════╗
+       ║  BELT            ║
+       ╚══════════════════╝ -->
+  <rect x="62"  y="234" width="96" height="14" rx="6.5" fill="#b4c4d4" stroke="rgba(120,152,180,0.58)" stroke-width="1.3"/>
+  <rect x="65"  y="236" width="90" height="10" rx="4.5" fill="rgba(168,192,214,0.38)"/>
+  <rect x="97"  y="236" width="26" height="10" rx="4.5" fill="#96aec3"   stroke="rgba(105,145,178,0.68)" stroke-width="1"/>
+  <rect x="99"  y="237.5" width="22" height="7" rx="3"  fill="rgba(76,148,212,0.65)"/>
+  <rect x="63"  y="235" width="94" height="3.5" rx="2"  fill="rgba(255,255,255,0.2)"/>
+  <!-- Close-up suit detail -->
+  <g class="detail-close">
+    <line x1="66" y1="162" x2="154" y2="162" stroke="rgba(172,196,218,0.1)" stroke-width="0.7"/>
+    <line x1="66" y1="177" x2="154" y2="177" stroke="rgba(172,196,218,0.1)" stroke-width="0.7"/>
+    <line x1="66" y1="192" x2="154" y2="192" stroke="rgba(172,196,218,0.1)" stroke-width="0.7"/>
+    <line x1="66" y1="207" x2="154" y2="207" stroke="rgba(172,196,218,0.1)" stroke-width="0.7"/>
+    <rect x="67" y="150" width="14" height="11" rx="3" fill="rgba(52,112,196,0.25)" stroke="rgba(78,158,255,0.35)" stroke-width="0.8"/>
+    <line x1="69" y1="155" x2="79" y2="155" stroke="rgba(78,158,255,0.3)" stroke-width="0.7"/>
+  </g>
+
+  <!-- ╔══════════════════╗
+       ║  LEFT ARM        ║
+       ╚══════════════════╝ -->
+  <g id="armL" style="transform-origin:76px 162px">
+    <!-- Shoulder cap -->
+    <ellipse cx="72" cy="156" rx="18" ry="14" fill="url(#sg)" stroke="rgba(122,155,182,0.5)" stroke-width="1.3"/>
+    <ellipse cx="67" cy="151" rx="9"  ry="5.5" fill="rgba(255,255,255,0.2)"/>
+    <!-- Upper arm -->
+    <rect x="50" y="154" width="24" height="38" rx="12" fill="url(#sg)" stroke="rgba(122,155,182,0.42)" stroke-width="1.2"/>
+    <ellipse cx="58" cy="162" rx="5.5" ry="4" fill="rgba(255,255,255,0.2)"/>
+    <path d="M 52 158 C 50 172 50 184 52 192" stroke="rgba(92,134,165,0.24)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <!-- Elbow ring -->
+    <ellipse cx="62" cy="193" rx="14" ry="8"   fill="rgba(82,114,146,0.36)"/>
+    <ellipse cx="62" cy="192" rx="14" ry="8"   fill="#bacad8" stroke="rgba(122,155,182,0.62)" stroke-width="1.4"/>
+    <ellipse cx="62" cy="191" rx="12" ry="5.8" fill="#cad6e4"/>
+    <ellipse cx="62" cy="189" rx="8"  ry="3.2" fill="rgba(255,255,255,0.25)"/>
+    <!-- Forearm -->
+    <rect x="50" y="190" width="24" height="32" rx="12" fill="url(#sg)" stroke="rgba(122,155,182,0.38)" stroke-width="1.2"/>
+    <path d="M 52 194 C 50 207 50 216 52 222" stroke="rgba(92,134,165,0.22)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <!-- Wrist ring -->
+    <ellipse cx="62" cy="223" rx="13" ry="6.5" fill="rgba(82,114,146,0.3)"/>
+    <ellipse cx="62" cy="222" rx="13" ry="6.5" fill="#b2c2d2" stroke="rgba(118,150,178,0.65)" stroke-width="1.3"/>
+    <ellipse cx="62" cy="221" rx="11" ry="4.8" fill="#c4d2e0"/>
+    <!-- Glove -->
+    <ellipse cx="62" cy="236" rx="15" ry="12"  fill="url(#gg)" stroke="rgba(105,142,170,0.58)" stroke-width="1.3"/>
+    <ellipse cx="57" cy="230" rx="7"  ry="4"   fill="rgba(255,255,255,0.18)"/>
+    <path d="M 50 234 Q 62 229 74 234" stroke="rgba(85,122,150,0.35)" stroke-width="1.1" fill="none"/>
+  </g>
+
+  <!-- ╔══════════════════╗
+       ║  RIGHT ARM       ║
+       ╚══════════════════╝ -->
+  <g id="armR" style="transform-origin:144px 162px">
+    <!-- Shoulder cap -->
+    <ellipse cx="148" cy="156" rx="18" ry="14" fill="url(#sg)" stroke="rgba(122,155,182,0.5)" stroke-width="1.3"/>
+    <ellipse cx="143" cy="151" rx="9"  ry="5.5" fill="rgba(255,255,255,0.2)"/>
+    <!-- Upper arm -->
+    <rect x="146" y="154" width="24" height="38" rx="12" fill="url(#sg)" stroke="rgba(122,155,182,0.42)" stroke-width="1.2"/>
+    <ellipse cx="154" cy="162" rx="5.5" ry="4" fill="rgba(255,255,255,0.2)"/>
+    <path d="M 168 158 C 170 172 170 184 168 192" stroke="rgba(92,134,165,0.24)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <!-- Elbow ring -->
+    <ellipse cx="158" cy="193" rx="14" ry="8"   fill="rgba(82,114,146,0.36)"/>
+    <ellipse cx="158" cy="192" rx="14" ry="8"   fill="#bacad8" stroke="rgba(122,155,182,0.62)" stroke-width="1.4"/>
+    <ellipse cx="158" cy="191" rx="12" ry="5.8" fill="#cad6e4"/>
+    <ellipse cx="158" cy="189" rx="8"  ry="3.2" fill="rgba(255,255,255,0.25)"/>
+    <!-- Forearm -->
+    <rect x="146" y="190" width="24" height="32" rx="12" fill="url(#sg)" stroke="rgba(122,155,182,0.38)" stroke-width="1.2"/>
+    <path d="M 168 194 C 170 207 170 216 168 222" stroke="rgba(92,134,165,0.22)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <!-- Wrist ring -->
+    <ellipse cx="158" cy="223" rx="13" ry="6.5" fill="rgba(82,114,146,0.3)"/>
+    <ellipse cx="158" cy="222" rx="13" ry="6.5" fill="#b2c2d2" stroke="rgba(118,150,178,0.65)" stroke-width="1.3"/>
+    <ellipse cx="158" cy="221" rx="11" ry="4.8" fill="#c4d2e0"/>
+    <!-- Glove -->
+    <ellipse cx="158" cy="236" rx="15" ry="12"  fill="url(#gg)" stroke="rgba(105,142,170,0.58)" stroke-width="1.3"/>
+    <ellipse cx="153" cy="230" rx="7"  ry="4"   fill="rgba(255,255,255,0.18)"/>
+    <path d="M 146 234 Q 158 229 170 234" stroke="rgba(85,122,150,0.35)" stroke-width="1.1" fill="none"/>
+  </g>
+
+  <!-- ╔══════════════════╗
+       ║  LEGS & BOOTS    ║
+       ╚══════════════════╝ -->
+  <!-- Left thigh -->
+  <rect x="74"  y="244" width="34" height="38" rx="16" fill="url(#sg)" stroke="rgba(122,155,182,0.42)" stroke-width="1.2" filter="url(#sh)"/>
+  <ellipse cx="84" cy="251" rx="8" ry="5" fill="rgba(255,255,255,0.2)"/>
+  <path d="M 76 248 C 74 262 74 274 76 280" stroke="rgba(92,134,165,0.22)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <!-- Right thigh -->
+  <rect x="112" y="244" width="34" height="38" rx="16" fill="url(#sg)" stroke="rgba(122,155,182,0.42)" stroke-width="1.2" filter="url(#sh)"/>
+  <ellipse cx="122" cy="251" rx="8" ry="5" fill="rgba(255,255,255,0.2)"/>
+  <path d="M 144 248 C 146 262 146 274 144 280" stroke="rgba(92,134,165,0.22)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <!-- Knee rings L -->
+  <ellipse cx="91"  cy="282" rx="19" ry="9"   fill="rgba(80,112,145,0.35)"/>
+  <ellipse cx="91"  cy="281" rx="19" ry="9"   fill="#bacad8" stroke="rgba(120,152,180,0.62)" stroke-width="1.3"/>
+  <ellipse cx="91"  cy="280" rx="16" ry="6.5" fill="#cad6e4"/>
+  <ellipse cx="91"  cy="278" rx="10" ry="3.5" fill="rgba(255,255,255,0.24)"/>
+  <!-- Knee rings R -->
+  <ellipse cx="129" cy="282" rx="19" ry="9"   fill="rgba(80,112,145,0.35)"/>
+  <ellipse cx="129" cy="281" rx="19" ry="9"   fill="#bacad8" stroke="rgba(120,152,180,0.62)" stroke-width="1.3"/>
+  <ellipse cx="129" cy="280" rx="16" ry="6.5" fill="#cad6e4"/>
+  <ellipse cx="129" cy="278" rx="10" ry="3.5" fill="rgba(255,255,255,0.24)"/>
+  <!-- Boots L -->
+  <ellipse cx="88"  cy="296" rx="21" ry="12" fill="url(#sg)" stroke="rgba(118,150,178,0.52)" stroke-width="1.3"/>
+  <ellipse cx="84"  cy="301" rx="24" ry="9"  fill="url(#sg)" stroke="rgba(112,145,174,0.48)" stroke-width="1.2"/>
+  <ellipse cx="84"  cy="305" rx="24" ry="7"  fill="url(#bs)" stroke="rgba(62,95,122,0.58)" stroke-width="1.1"/>
+  <line x1="64" y1="305" x2="108" y2="305" stroke="rgba(40,72,98,0.52)" stroke-width="1.6"/>
+  <ellipse cx="90"  cy="292" rx="11" ry="4.5" fill="rgba(255,255,255,0.2)"/>
+  <!-- Boots R -->
+  <ellipse cx="132" cy="296" rx="21" ry="12" fill="url(#sg)" stroke="rgba(118,150,178,0.52)" stroke-width="1.3"/>
+  <ellipse cx="136" cy="301" rx="24" ry="9"  fill="url(#sg)" stroke="rgba(112,145,174,0.48)" stroke-width="1.2"/>
+  <ellipse cx="136" cy="305" rx="24" ry="7"  fill="url(#bs)" stroke="rgba(62,95,122,0.58)" stroke-width="1.1"/>
+  <line x1="116" y1="305" x2="160" y2="305" stroke="rgba(40,72,98,0.52)" stroke-width="1.6"/>
+  <ellipse cx="134" cy="292" rx="11" ry="4.5" fill="rgba(255,255,255,0.2)"/>
+
+</g><!-- /autoBody -->
+</svg>
+
+    <!-- BACK FACE SVG — shown when Auto is facing away -->
+    <svg id="auto-back" viewBox="0 0 220 300" xmlns="http://www.w3.org/2000/svg" style="overflow:visible;display:none">
+<defs>
+  <radialGradient id="sgbk" cx="62%" cy="26%" r="72%">
+    <stop offset="0%"   stop-color="#ffffff"/>
+    <stop offset="28%"  stop-color="#f0f5fa"/>
+    <stop offset="62%"  stop-color="#d6e6f2"/>
+    <stop offset="84%"  stop-color="#b4cadc"/>
+    <stop offset="100%" stop-color="#88acca"/>
+  </radialGradient>
+  <radialGradient id="hgbk" cx="62%" cy="24%" r="70%">
+    <stop offset="0%"   stop-color="#ffffff"/>
+    <stop offset="22%"  stop-color="#f2f7fc"/>
+    <stop offset="52%"  stop-color="#daeaf6"/>
+    <stop offset="78%"  stop-color="#bcd4ea"/>
+    <stop offset="100%" stop-color="#8eb4ce"/>
+  </radialGradient>
+  <linearGradient id="sslbk" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%"  stop-color="rgba(28,58,100,0.28)"/>
+    <stop offset="42%" stop-color="rgba(28,58,100,0)"/>
+  </linearGradient>
+  <linearGradient id="ssrbk" x1="100%" y1="0%" x2="0%" y2="0%">
+    <stop offset="0%"  stop-color="rgba(28,58,100,0.36)"/>
+    <stop offset="42%" stop-color="rgba(28,58,100,0)"/>
+  </linearGradient>
+  <linearGradient id="bsbk" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%"   stop-color="#5e7688"/>
+    <stop offset="100%" stop-color="#2c3e50"/>
+  </linearGradient>
+  <filter id="shbk" x="-18%" y="-12%" width="136%" height="136%">
+    <feDropShadow dx="0" dy="9" stdDeviation="13" flood-color="rgba(0,8,28,0.58)"/>
+  </filter>
+  <filter id="glbk">
+    <feGaussianBlur stdDeviation="2.8" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+</defs>
+
+<g class="float-anim" style="transform-origin:110px 152px">
+  <!-- ══ TORSO BACK ══ -->
+  <path d="M 80 148 C 72 148 65 155 64 165 L 62 226 C 62 234 68 240 76 240 L 144 240 C 152 240 158 234 158 226 L 156 165 C 155 155 148 148 140 148 Z"
+        fill="url(#sgbk)" filter="url(#shbk)"/>
+  <!-- Side shadows reversed for back lighting -->
+  <path d="M 80 148 C 72 148 65 155 64 165 L 62 226 C 62 234 68 240 76 240 L 98 240 L 96 148 Z"
+        fill="url(#sslbk)" opacity="0.85"/>
+  <path d="M 140 148 C 148 148 155 155 156 165 L 158 226 C 158 234 152 240 144 240 L 122 240 L 124 148 Z"
+        fill="url(#ssrbk)" opacity="0.85"/>
+  <ellipse cx="114" cy="156" rx="26" ry="8" fill="rgba(255,255,255,0.2)" transform="rotate(5,114,156)"/>
+  <path d="M 68 180 Q 110 185 152 180" stroke="rgba(138,166,192,0.2)" stroke-width="1" fill="none"/>
+  <path d="M 66 205 Q 110 209 154 205" stroke="rgba(138,166,192,0.16)" stroke-width="1" fill="none"/>
+  <path d="M 72 152 C 70 172 70 206 72 232" stroke="rgba(95,135,165,0.22)" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <path d="M 148 152 C 150 172 150 206 148 232" stroke="rgba(95,135,165,0.22)" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <line x1="110" y1="150" x2="110" y2="238" stroke="rgba(136,166,192,0.18)" stroke-width="0.9" stroke-dasharray="4,7"/>
+
+  <!-- ══ PLSS BACKPACK (prominent on back) ══ -->
+  <rect x="72" y="155" width="56" height="60" rx="12" fill="#c8d5e2" stroke="rgba(122,155,182,0.65)" stroke-width="1.5" filter="url(#shbk)"/>
+  <!-- Pack top panel -->
+  <rect x="76" y="159" width="48" height="22" rx="7" fill="rgba(8,16,38,0.3)" stroke="rgba(88,142,196,0.42)" stroke-width="0.9"/>
+  <!-- Panel glare -->
+  <path d="M 77 160 L 95 160 L 90 168 L 76 168 Z" fill="rgba(255,255,255,0.1)"/>
+  <!-- O2 tank cylinders -->
+  <rect x="76"  y="186" width="22" height="24" rx="10" fill="#b8cad8" stroke="rgba(118,152,180,0.55)" stroke-width="1.1"/>
+  <rect x="102" y="186" width="22" height="24" rx="10" fill="#b8cad8" stroke="rgba(118,152,180,0.55)" stroke-width="1.1"/>
+  <!-- Tank top caps -->
+  <ellipse cx="87"  cy="186" rx="11" ry="4.5" fill="#c6d5e2" stroke="rgba(120,155,182,0.5)" stroke-width="0.9"/>
+  <ellipse cx="113" cy="186" rx="11" ry="4.5" fill="#c6d5e2" stroke="rgba(120,155,182,0.5)" stroke-width="0.9"/>
+  <!-- Tank highlights -->
+  <ellipse cx="84"  cy="192" rx="5"  ry="3"   fill="rgba(255,255,255,0.22)"/>
+  <ellipse cx="110" cy="192" rx="5"  ry="3"   fill="rgba(255,255,255,0.22)"/>
+  <!-- Hose connectors -->
+  <path d="M 87  186 Q 82 180 80 175" stroke="rgba(85,128,162,0.6)" stroke-width="3"   fill="none" stroke-linecap="round"/>
+  <path d="M 113 186 Q 118 180 120 175" stroke="rgba(85,128,162,0.6)" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- Pack highlight -->
+  <path d="M 74 157 Q 72 163 72 172" stroke="rgba(255,255,255,0.22)" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+
+  <!-- ══ NECK RING BACK ══ -->
+  <ellipse cx="110" cy="150" rx="23" ry="7.5" fill="rgba(85,115,148,0.38)"/>
+  <ellipse cx="110" cy="149" rx="22" ry="7"   fill="#bac9d8" stroke="rgba(122,155,182,0.72)" stroke-width="1.5"/>
+  <ellipse cx="110" cy="148" rx="19" ry="5.2" fill="#ccd8e5"/>
+  <ellipse cx="110" cy="145" rx="13" ry="3.2" fill="rgba(255,255,255,0.28)"/>
+
+  <!-- ══ HELMET BACK ══ -->
+  <ellipse cx="112" cy="112" rx="48" ry="12" fill="rgba(55,85,130,0.16)"/>
+  <ellipse cx="110" cy="96" rx="52" ry="55" fill="url(#hgbk)" filter="url(#shbk)"/>
+  <!-- Back lighting: reversed highlights -->
+  <path d="M 162 96 C 162 68 148 46 110 42 C 140 42 160 66 160 96 Z" fill="rgba(255,255,255,0.14)"/>
+  <path d="M 58 96 C 58 68 72 46 110 42 C 80 42 60 66 60 96 Z"  fill="rgba(55,88,130,0.14)"/>
+  <!-- Top highlight (right-shifted for back lighting) -->
+  <ellipse cx="122" cy="64" rx="28" ry="16" fill="rgba(255,255,255,0.22)" transform="rotate(14,122,64)"/>
+  <ellipse cx="128" cy="56" rx="13" ry="7"  fill="rgba(255,255,255,0.14)" transform="rotate(18,128,56)"/>
+  <!-- Helmet equator seam -->
+  <path d="M 60 105 Q 110 112 160 105" stroke="rgba(136,165,194,0.44)" stroke-width="1.1" fill="none"/>
+  <!-- Centre back seam -->
+  <line x1="110" y1="42" x2="110" y2="148" stroke="rgba(136,165,192,0.22)" stroke-width="0.9" stroke-dasharray="3,5"/>
+  <!-- Side vents -->
+  <ellipse cx="60"  cy="105" rx="9" ry="11" fill="url(#sgbk)" stroke="rgba(122,155,182,0.65)" stroke-width="1.4"/>
+  <line x1="55" y1="100" x2="65" y2="100" stroke="rgba(102,140,166,0.55)" stroke-width="1"/>
+  <line x1="55" y1="104" x2="65" y2="104" stroke="rgba(102,140,166,0.55)" stroke-width="1"/>
+  <line x1="55" y1="108" x2="65" y2="108" stroke="rgba(102,140,166,0.55)" stroke-width="1"/>
+  <ellipse cx="160" cy="105" rx="9" ry="11" fill="url(#sgbk)" stroke="rgba(122,155,182,0.65)" stroke-width="1.4"/>
+  <line x1="155" y1="100" x2="165" y2="100" stroke="rgba(102,140,166,0.55)" stroke-width="1"/>
+  <line x1="155" y1="104" x2="165" y2="104" stroke="rgba(102,140,166,0.55)" stroke-width="1"/>
+  <line x1="155" y1="108" x2="165" y2="108" stroke="rgba(102,140,166,0.55)" stroke-width="1"/>
+  <!-- Antenna (back side) -->
+  <line x1="110" y1="42" x2="102" y2="20" stroke="#b2c7d8" stroke-width="2.4" stroke-linecap="round"/>
+  <circle cx="102" cy="18" r="5" fill="rgba(78,208,255,0.95)" stroke="rgba(196,240,255,0.9)" stroke-width="1.3" filter="url(#glbk)">
+    <animate attributeName="r"       values="5;6.5;5"     dur="2.2s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.95;0.35;0.95" dur="2.2s" repeatCount="indefinite"/>
+  </circle>
+  <!-- Helmet back reflections (no visor — just smooth dome) -->
+  <ellipse cx="124" cy="84" rx="16" ry="9" fill="rgba(255,255,255,0.14)" transform="rotate(24,124,84)"/>
+
+  <!-- ══ BELT BACK ══ -->
+  <rect x="62"  y="234" width="96" height="14" rx="6.5" fill="#b4c4d4" stroke="rgba(120,152,180,0.58)" stroke-width="1.3"/>
+  <rect x="65"  y="236" width="90" height="10" rx="4.5" fill="rgba(168,192,214,0.38)"/>
+  <rect x="63"  y="235" width="94" height="3.5" rx="2"  fill="rgba(255,255,255,0.18)"/>
+
+  <!-- ══ LEFT ARM BACK ══ -->
+  <g style="transform-origin:76px 162px">
+    <ellipse cx="72" cy="156" rx="18" ry="14" fill="url(#sgbk)" stroke="rgba(122,155,182,0.5)" stroke-width="1.3"/>
+    <rect x="50" y="154" width="24" height="38" rx="12" fill="url(#sgbk)" stroke="rgba(122,155,182,0.42)" stroke-width="1.2"/>
+    <ellipse cx="62" cy="193" rx="14" ry="8" fill="#bacad8" stroke="rgba(122,155,182,0.62)" stroke-width="1.4"/>
+    <ellipse cx="62" cy="191" rx="12" ry="5.8" fill="#cad6e4"/>
+    <rect x="50" y="190" width="24" height="32" rx="12" fill="url(#sgbk)" stroke="rgba(122,155,182,0.38)" stroke-width="1.2"/>
+    <ellipse cx="62" cy="222" rx="13" ry="6.5" fill="#b2c2d2" stroke="rgba(118,150,178,0.65)" stroke-width="1.3"/>
+    <ellipse cx="62" cy="236" rx="15" ry="12" fill="url(#gg)" stroke="rgba(105,142,170,0.58)" stroke-width="1.3"/>
+  </g>
+
+  <!-- ══ RIGHT ARM BACK ══ -->
+  <g style="transform-origin:144px 162px">
+    <ellipse cx="148" cy="156" rx="18" ry="14" fill="url(#sgbk)" stroke="rgba(122,155,182,0.5)" stroke-width="1.3"/>
+    <rect x="146" y="154" width="24" height="38" rx="12" fill="url(#sgbk)" stroke="rgba(122,155,182,0.42)" stroke-width="1.2"/>
+    <ellipse cx="158" cy="193" rx="14" ry="8" fill="#bacad8" stroke="rgba(122,155,182,0.62)" stroke-width="1.4"/>
+    <ellipse cx="158" cy="191" rx="12" ry="5.8" fill="#cad6e4"/>
+    <rect x="146" y="190" width="24" height="32" rx="12" fill="url(#sgbk)" stroke="rgba(122,155,182,0.38)" stroke-width="1.2"/>
+    <ellipse cx="158" cy="222" rx="13" ry="6.5" fill="#b2c2d2" stroke="rgba(118,150,178,0.65)" stroke-width="1.3"/>
+    <ellipse cx="158" cy="236" rx="15" ry="12" fill="url(#gg)" stroke="rgba(105,142,170,0.58)" stroke-width="1.3"/>
+  </g>
+
+  <!-- ══ LEGS BACK ══ -->
+  <rect x="74"  y="244" width="34" height="38" rx="16" fill="url(#sgbk)" stroke="rgba(122,155,182,0.42)" stroke-width="1.2" filter="url(#shbk)"/>
+  <rect x="112" y="244" width="34" height="38" rx="16" fill="url(#sgbk)" stroke="rgba(122,155,182,0.42)" stroke-width="1.2" filter="url(#shbk)"/>
+  <ellipse cx="91"  cy="282" rx="19" ry="9"   fill="#bacad8" stroke="rgba(120,152,180,0.62)" stroke-width="1.3"/>
+  <ellipse cx="91"  cy="280" rx="16" ry="6.5" fill="#cad6e4"/>
+  <ellipse cx="129" cy="282" rx="19" ry="9"   fill="#bacad8" stroke="rgba(120,152,180,0.62)" stroke-width="1.3"/>
+  <ellipse cx="129" cy="280" rx="16" ry="6.5" fill="#cad6e4"/>
+  <ellipse cx="88"  cy="296" rx="21" ry="12"  fill="url(#sgbk)" stroke="rgba(118,150,178,0.52)" stroke-width="1.3"/>
+  <ellipse cx="84"  cy="301" rx="24" ry="9"   fill="url(#sgbk)" stroke="rgba(112,145,174,0.48)" stroke-width="1.2"/>
+  <ellipse cx="84"  cy="305" rx="24" ry="7"   fill="url(#bsbk)" stroke="rgba(62,95,122,0.58)" stroke-width="1.1"/>
+  <line x1="64" y1="305" x2="108" y2="305" stroke="rgba(40,72,98,0.52)" stroke-width="1.6"/>
+  <ellipse cx="132" cy="296" rx="21" ry="12"  fill="url(#sgbk)" stroke="rgba(118,150,178,0.52)" stroke-width="1.3"/>
+  <ellipse cx="136" cy="301" rx="24" ry="9"   fill="url(#sgbk)" stroke="rgba(112,145,174,0.48)" stroke-width="1.2"/>
+  <ellipse cx="136" cy="305" rx="24" ry="7"   fill="url(#bsbk)" stroke="rgba(62,95,122,0.58)" stroke-width="1.1"/>
+  <line x1="116" y1="305" x2="160" y2="305" stroke="rgba(40,72,98,0.52)" stroke-width="1.6"/>
+</g>
+</svg>
+    </div><!-- end astro-wrap -->
+
+
+  </div><!-- end stage -->
+
+  <!-- Bottom controls bar -->
+  <div id="controls">
+    <div id="displayText" style="display:none"></div>
+    <div id="streamText" style="display:none"></div>
+    <div id="interim" style="display:none"></div>
+    <div class="btn-row" id="btnRow">
+      <button class="btn btn-interrupt" id="btnInterrupt" onclick="handleInterrupt()" style="display:none">⏹ Stop</button>
+      <button id="orbBtn" onclick="handleOrbClick()">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4z"/>
+          <path d="M19 10a1 1 0 0 0-2 0 5 5 0 0 1-10 0 1 1 0 0 0-2 0 7 7 0 0 0 6 6.92V19H9a1 1 0 0 0 0 2h6a1 1 0 0 0 0-2h-2v-2.08A7 7 0 0 0 19 10z"/>
+        </svg>
+      </button>
+      <button class="btn btn-stop" onclick="handleStop()" style="display:none" id="btnEnd">End</button>
+    </div>
+  </div>
+
+  <!-- Chat log -->
+  <div id="chat">
+    <div class="chat-lbl">Conversation <button class="clr-btn" onclick="clearChat()">Clear</button></div>
+    <div id="chatMsgs"></div><div id="chatEnd"></div>
+  </div>
+
+  <!-- Text input bar -->
+  <div id="textBar">
+    <input id="textInput" type="text" placeholder="Message Auto..." autocorrect="off" autocapitalize="sentences"/>
+    <button id="textSend" onclick="sendText()">➤</button>
+  </div>
+</div>
+
+<!-- Settings Panel -->
+<div class="panel-overlay" id="settingsOverlay" onclick="closePanelOnOverlay(event,'settingsOverlay')">
+  <div class="panel">
+    <div class="ph"></div>
+    <div class="pt">⚙ SETTINGS</div>
+    <div class="sr">
+      <div class="sl">Wake Word <span id="wakePreview">hey claude</span></div>
+      <input class="si" id="wakeInput" type="text" placeholder="e.g. hey auto" maxlength="40"/>
+    </div>
+    <div class="sr">
+      <div class="sl">Voice Speed <span id="rateVal">1.0×</span></div>
+      <div class="srow"><span style="font-size:11px;opacity:.4">Slow</span><input type="range" id="rateSlider" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateSlider('rate')"/><span style="font-size:11px;opacity:.4">Fast</span></div>
+    </div>
+    <div class="sr">
+      <div class="sl">Voice Pitch <span id="pitchVal">1.0</span></div>
+      <div class="srow"><span style="font-size:11px;opacity:.4">Low</span><input type="range" id="pitchSlider" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateSlider('pitch')"/><span style="font-size:11px;opacity:.4">High</span></div>
+    </div>
+    <div class="sr">
+      <div class="sl">Change API Key</div>
+      <div style="display:flex;gap:7px">
+        <input class="si" id="newKeyInput" type="password" placeholder="sk-ant-..." style="flex:1"/>
+        <button onclick="updateApiKey()" style="padding:11px 14px;border-radius:10px;background:rgba(120,200,255,.12);border:1px solid rgba(120,200,255,.3);color:#7cf;font-family:inherit;font-size:12px;cursor:pointer">Save</button>
+      </div>
+    </div>
+    <button class="psave" onclick="saveSettings()">Save Settings</button>
+  </div>
+</div>
+
+<!-- History Panel -->
+<div class="panel-overlay" id="historyOverlay" onclick="closePanelOnOverlay(event,'historyOverlay')">
+  <div class="panel">
+    <div class="ph"></div>
+    <div class="pt">📋 MISSION LOGS</div>
+    <div class="ha"><button class="db" onclick="clearAllHistory()">🗑 Clear All</button></div>
+    <div class="pscroll" id="historyList"></div>
+  </div>
+</div>
+
+<!-- Mic Modal -->
+<div class="modal-overlay" id="micModal">
+  <div class="modal">
+    <div class="mh"></div>
+    <div class="mi">🎙️</div>
+    <div class="mt">Mic Access Required</div>
+    <div class="ms" id="modalSub">Auto needs your mic to hear you!<br>Tap below to allow access.</div>
+    <div class="mtabs" id="modalTabs" style="display:none">
+      <button class="tb active" onclick="switchTab('android')">🤖 Android</button>
+      <button class="tb" onclick="switchTab('ios')">🍎 iOS</button>
+    </div>
+    <div class="steps" id="stepsAndroid" style="display:none">
+      <div class="step"><div class="sn">1</div><div class="st">Tap the <b>🔒 lock icon</b> in Chrome's address bar</div></div>
+      <div class="step"><div class="sn">2</div><div class="st">Tap <b>Permissions → Microphone → Allow</b></div></div>
+      <div class="step"><div class="sn">3</div><div class="st">Tap <b>Reload &amp; Try Again</b> below</div></div>
+    </div>
+    <div class="steps" id="stepsIos" style="display:none">
+      <div class="step"><div class="sn">1</div><div class="st">Open <b>Settings → Safari → Microphone → Allow</b></div></div>
+      <div class="step"><div class="sn">2</div><div class="st">Return and tap <b>Reload &amp; Try Again</b></div></div>
+    </div>
+    <button class="mpb" id="modalPrimaryBtn" onclick="handleModalPrimary()">🎙️ Allow Microphone</button>
+    <button class="msb" onclick="closeModal()">Not Now</button>
+  </div>
+</div>
+
+<!-- API Key Screen -->
+<div id="keyScreen" style="position:fixed;inset:0;z-index:999;background:linear-gradient(160deg,#020810,#060d1a);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 28px;text-align:center;font-family:'DM Sans',sans-serif;">
+  <div style="font-family:'Orbitron',monospace;font-size:22px;font-weight:900;color:#7cf;text-shadow:0 0 20px rgba(120,200,255,.8);margin-bottom:8px;">AUTO AI</div>
+  <div style="font-size:52px;margin-bottom:16px;">🚀</div>
+  <div style="font-family:'Orbitron',monospace;font-size:17px;font-weight:700;color:#fff;margin-bottom:8px;">Mission Access Required</div>
+  <div style="font-size:12px;color:rgba(255,255,255,.45);line-height:1.7;margin-bottom:24px;max-width:300px;">
+    Get a free API key at<br>
+    <a href="https://console.anthropic.com" target="_blank" style="color:#7cf;">console.anthropic.com</a><br>
+    → API Keys → Create Key
+  </div>
+  <textarea id="keyInput" rows="3" placeholder="Paste your full API key here..." style="width:100%;max-width:340px;padding:14px;border-radius:13px;font-size:13px;font-family:inherit;background:rgba(255,255,255,.08);border:2px solid rgba(120,200,255,.4);color:#fff;outline:none;resize:none;margin-bottom:12px;"></textarea>
+  <div id="keyErr" style="font-size:12px;color:#f88;margin-bottom:10px;min-height:18px;"></div>
+  <button id="launchBtn" style="width:100%;max-width:340px;padding:16px;border-radius:13px;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;border:none;background:linear-gradient(135deg,#0af,#46a);color:#fff;margin-bottom:14px;letter-spacing:1px;">
+    LAUNCH AUTO
+  </button>
+  <div style="font-size:10px;color:rgba(255,255,255,.2);">Key stored only on this device</div>
+</div>
+
+<script>
+
+// Global submitKey - defined first so it's always available
+var submitKey = function() {
+  var inp = document.getElementById("keyInput");
+  var errEl = document.getElementById("keyErr");
+  var screen = document.getElementById("keyScreen");
+  var v = inp ? inp.value.trim() : "";
+  if (!v || v.length < 5) {
+    if (errEl) errEl.textContent = "Please paste your API key!";
+    return;
+  }
+  API_KEY = v;
+  try { localStorage.setItem("cv_api_key", JSON.stringify(v)); } catch(e) {}
+  if (errEl) errEl.textContent = "";
+  if (screen) screen.style.display = "none";
+};
+
+
+// KEY SCREEN - wired up directly
+window.addEventListener("load", function() {
+  var btn = document.getElementById("launchBtn");
+  var inp = document.getElementById("keyInput");
+  var err = document.getElementById("keyErr");
+  var screen = document.getElementById("keyScreen");
+
+  // Check if key already saved
+  try {
+    var saved = localStorage.getItem("cv_api_key");
+    if (saved) {
+      var parsed = JSON.parse(saved);
+      if (parsed && parsed.length > 5) {
+        API_KEY = parsed;
+        screen.style.display = "none";
+      }
+    }
+  } catch(e) {}
+
+  function doLaunch() {
+    var v = inp.value.trim();
+    if (!v || v.length < 5) {
+      err.textContent = "Please paste your API key above!";
+      err.style.color = "#f88";
+      return;
+    }
+    API_KEY = v;
+    try { localStorage.setItem("cv_api_key", JSON.stringify(v)); } catch(e) {}
+    screen.style.display = "none";
+    err.textContent = "";
+  }
+
+  if (btn) {
+    btn.addEventListener("click", doLaunch);
+    btn.onclick = doLaunch;
+  }
+  if (inp) inp.addEventListener("keydown", function(e) { if(e.key === "Enter") doLaunch(); });
+});
+
+// ══════════════════════════════════════════════════════
+// CINEMATIC SPACE BACKGROUND
+// ══════════════════════════════════════════════════════
+(function(){
+  const canvas = document.getElementById("starCanvas");
+  const ctx = canvas.getContext("2d");
+  let W, H, stars = [], shootingStars = [], dustClouds = [];
+  let t = 0;
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    buildScene();
+  }
+
+  function buildScene() {
+    // Stars - multiple layers for parallax depth
+    stars = [];
+    const count = Math.floor(W * H / 900);
+    for (let i = 0; i < count; i++) {
+      const layer = Math.random();
+      stars.push({
+        x: Math.random() * W, y: Math.random() * H,
+        r: layer < 0.6 ? Math.random() * 0.8 + 0.1   // distant tiny
+          : layer < 0.85 ? Math.random() * 1.4 + 0.5  // mid
+          : Math.random() * 2.2 + 0.8,                 // close bright
+        twinkle: Math.random() * Math.PI * 2,
+        speed: Math.random() * 0.008 + 0.002,
+        bright: Math.random() * 0.5 + 0.4,
+        color: Math.random() < 0.15
+          ? [180, 200, 255]   // blue-white
+          : Math.random() < 0.08
+          ? [255, 220, 180]   // warm yellow
+          : [230, 240, 255],  // cool white
+        layer: layer
+      });
+    }
+    // Dust/particle clouds
+    dustClouds = [];
+    for (let i = 0; i < 6; i++) {
+      dustClouds.push({
+        x: Math.random() * W, y: Math.random() * H,
+        w: 200 + Math.random() * 400, h: 100 + Math.random() * 250,
+        angle: Math.random() * Math.PI,
+        color: [
+          [0, 80, 180],   // deep blue
+          [40, 0, 120],   // purple
+          [0, 120, 100],  // teal
+          [80, 0, 60],    // dark magenta
+          [0, 40, 100],   // navy
+          [20, 60, 140],  // indigo
+        ][i % 6],
+        opacity: 0.04 + Math.random() * 0.06,
+        drift: (Math.random() - 0.5) * 0.00008
+      });
+    }
+  }
+
+  function spawnShootingStar() {
+    if (Math.random() < 0.004 && shootingStars.length < 2) {
+      shootingStars.push({
+        x: Math.random() * W * 0.7,
+        y: Math.random() * H * 0.4,
+        len: 80 + Math.random() * 120,
+        speed: 6 + Math.random() * 8,
+        angle: Math.PI / 4 + (Math.random() - 0.5) * 0.4,
+        life: 1.0,
+        decay: 0.02 + Math.random() * 0.015
+      });
+    }
+  }
+
+  function draw() {
+    t++;
+    ctx.clearRect(0, 0, W, H);
+
+    // Deep space base — rich dark blue-black
+    const bg = ctx.createRadialGradient(W * 0.4, H * 0.3, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.9);
+    bg.addColorStop(0,   "#06091a");
+    bg.addColorStop(0.3, "#040812");
+    bg.addColorStop(0.7, "#020508");
+    bg.addColorStop(1,   "#010306");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Nebula dust clouds
+    dustClouds.forEach(d => {
+      d.angle += d.drift;
+      const grad = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, d.w);
+      const [r, g, b] = d.color;
+      const pulse = d.opacity + Math.sin(t * 0.003 + d.x) * 0.015;
+      grad.addColorStop(0,   `rgba(${r},${g},${b},${pulse})`);
+      grad.addColorStop(0.4, `rgba(${r},${g},${b},${pulse * 0.5})`);
+      grad.addColorStop(1,   `rgba(${r},${g},${b},0)`);
+      ctx.save();
+      ctx.translate(d.x, d.y);
+      ctx.rotate(d.angle);
+      ctx.scale(1, d.h / d.w);
+      ctx.translate(-d.x, -d.y);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.w, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+
+    // Milky way band — subtle horizontal glow
+    const mw = ctx.createLinearGradient(0, H * 0.3, W, H * 0.7);
+    mw.addColorStop(0,   "rgba(20,40,90,0)");
+    mw.addColorStop(0.3, "rgba(20,40,90,0.06)");
+    mw.addColorStop(0.5, "rgba(30,55,110,0.09)");
+    mw.addColorStop(0.7, "rgba(20,40,90,0.06)");
+    mw.addColorStop(1,   "rgba(20,40,90,0)");
+    ctx.fillStyle = mw;
+    ctx.fillRect(0, 0, W, H);
+
+    // Stars
+    stars.forEach(s => {
+      s.twinkle += s.speed;
+      const twinkleAmt = 0.5 + 0.5 * Math.sin(s.twinkle);
+      const alpha = s.bright * (0.55 + 0.45 * twinkleAmt);
+      const [sr, sg, sb] = s.color;
+
+      // Glow halo for bright stars
+      if (s.r > 1.2) {
+        const halo = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r * 4);
+        halo.addColorStop(0,   `rgba(${sr},${sg},${sb},${alpha * 0.4})`);
+        halo.addColorStop(0.5, `rgba(${sr},${sg},${sb},${alpha * 0.1})`);
+        halo.addColorStop(1,   `rgba(${sr},${sg},${sb},0)`);
+        ctx.fillStyle = halo;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r * 4, 0, Math.PI * 2);
+        ctx.fill();
+        // Cross diffraction spike for very bright stars
+        if (s.r > 1.8) {
+          ctx.strokeStyle = `rgba(${sr},${sg},${sb},${alpha * 0.3})`;
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(s.x - s.r * 5, s.y);
+          ctx.lineTo(s.x + s.r * 5, s.y);
+          ctx.moveTo(s.x, s.y - s.r * 5);
+          ctx.lineTo(s.x, s.y + s.r * 5);
+          ctx.stroke();
+        }
+      }
+
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${sr},${sg},${sb},${alpha})`;
+      ctx.fill();
+    });
+
+    // Shooting stars
+    spawnShootingStar();
+    shootingStars = shootingStars.filter(ss => ss.life > 0);
+    shootingStars.forEach(ss => {
+      ss.x += Math.cos(ss.angle) * ss.speed;
+      ss.y += Math.sin(ss.angle) * ss.speed;
+      ss.life -= ss.decay;
+      const grad = ctx.createLinearGradient(
+        ss.x, ss.y,
+        ss.x - Math.cos(ss.angle) * ss.len,
+        ss.y - Math.sin(ss.angle) * ss.len
+      );
+      grad.addColorStop(0,   `rgba(255,255,255,${ss.life * 0.9})`);
+      grad.addColorStop(0.3, `rgba(180,220,255,${ss.life * 0.4})`);
+      grad.addColorStop(1,   "rgba(100,160,255,0)");
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(ss.x, ss.y);
+      ctx.lineTo(ss.x - Math.cos(ss.angle) * ss.len, ss.y - Math.sin(ss.angle) * ss.len);
+      ctx.stroke();
+    });
+
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener("resize", resize);
+  resize();
+  draw();
+})();
+
+
+// ══════════════════════════════════════════════════════
+// FULL ANIMATION SYSTEM
+// ══════════════════════════════════════════════════════
+var animT = 0, lastFrame = 0;
+var blinkTimer = 0, nextBlink = 3000;
+var pupilX = 0, pupilY = 0, targetPupilX = 0, targetPupilY = 0;
+var pupilMoveTimer = 0, nextPupilMove = 2000;
+var breathScale = 1;
+var speakBarT = 0;
+var particles = [];
+var waveAnim = 0, isWaving = false, waveTimer = 0;
+var headTiltAngle = 0, targetHeadTilt = 0;
+var spinAngle = 0, isSpinning = false;
+
+// Smooth eased float value
+function fv(freq, phase, amp, t) {
+  return Math.sin(t * freq + phase) * amp + Math.sin(t * freq * 2.1 + phase) * amp * 0.12;
+}
+
+// Spawn a floating particle off the suit
+function spawnParticle() {
+  var side = Math.random() < 0.5 ? -1 : 1;
+  particles.push({
+    x: 100 + side * (30 + Math.random() * 15),
+    y: 120 + Math.random() * 60,
+    vx: side * (0.2 + Math.random() * 0.4),
+    vy: -(0.3 + Math.random() * 0.5),
+    life: 1.0,
+    decay: 0.008 + Math.random() * 0.006,
+    r: 1 + Math.random() * 2,
+    color: Math.random() < 0.5 ? "80,200,255" : "180,220,255",
+    el: null
+  });
+}
+
+function updateParticles(svg) {
+  var pg = document.getElementById("particles");
+  if (!pg) return;
+  // spawn occasionally
+  if (Math.random() < 0.04) spawnParticle();
+  particles.forEach(function(p) {
+    p.x += p.vx; p.y += p.vy; p.life -= p.decay;
+    if (!p.el) {
+      p.el = document.createElementNS("http://www.w3.org/2000/svg","circle");
+      pg.appendChild(p.el);
+    }
+    p.el.setAttribute("cx", p.x.toFixed(1));
+    p.el.setAttribute("cy", p.y.toFixed(1));
+    p.el.setAttribute("r", (p.r * p.life).toFixed(2));
+    p.el.setAttribute("fill","rgba("+p.color+","+(p.life*0.6).toFixed(2)+")");
+  });
+  // remove dead
+  particles = particles.filter(function(p) {
+    if (p.life <= 0 && p.el) { pg.removeChild(p.el); return false; }
+    return true;
+  });
+}
+
+// Blink animation
+function doBlink() {
+  var bl = document.getElementById("blinkL");
+  var br = document.getElementById("blinkR");
+  if (!bl || !br) return;
+  var frames = [0,3,6,8,6,3,0];
+  var fi = 0;
+  var bInterval = setInterval(function() {
+    var h = frames[fi++];
+    bl.setAttribute("height", h);
+    bl.setAttribute("y", 104 - h);
+    br.setAttribute("height", h);
+    br.setAttribute("y", 104 - h);
+    if (fi >= frames.length) clearInterval(bInterval);
+  }, 30);
+}
+
+// Pupil tracking — eyes look around slowly
+function updatePupils(dt) {
+  pupilMoveTimer += dt;
+  if (pupilMoveTimer > nextPupilMove) {
+    targetPupilX = (Math.random() - 0.5) * 3;
+    targetPupilY = (Math.random() - 0.5) * 2;
+    pupilMoveTimer = 0;
+    nextPupilMove = 1500 + Math.random() * 3000;
+  }
+  pupilX += (targetPupilX - pupilX) * 0.05;
+  pupilY += (targetPupilY - pupilY) * 0.05;
+  var pl = document.getElementById("pupilL");
+  var pr = document.getElementById("pupilR");
+  if (pl) { pl.setAttribute("cx", (94 + pupilX).toFixed(2)); pl.setAttribute("cy", (97 + pupilY).toFixed(2)); }
+  if (pr) { pr.setAttribute("cx", (126 + pupilX).toFixed(2)); pr.setAttribute("cy", (97 + pupilY).toFixed(2)); }
+}
+
+// Speaking sound bars
+function updateSpeakBars(dt) {
+  if (typeof currentPhase !== "undefined" && (currentPhase === "speaking" || currentPhase === "streaming")) {
+    speakBarT += dt * 0.015;
+    var heights = [
+      3 + 3 * Math.abs(Math.sin(speakBarT * 1.1)),
+      3 + 5 * Math.abs(Math.sin(speakBarT * 1.7 + 0.5)),
+      3 + 7 * Math.abs(Math.sin(speakBarT * 1.3 + 1.0)),
+      3 + 5 * Math.abs(Math.sin(speakBarT * 1.9 + 1.5))
+    ];
+    ["bar1","bar2","bar3","bar4"].forEach(function(id, i) {
+      var el = document.getElementById(id);
+      if (el) {
+        el.setAttribute("height", heights[i].toFixed(1));
+        el.setAttribute("y", (-heights[i]/2).toFixed(1));
+      }
+    });
+    // talking mouth
+    var mouth = document.getElementById("talkMouth");
+    if (mouth) {
+      var ry = 2 + 4 * Math.abs(Math.sin(speakBarT * 1.4));
+      mouth.setAttribute("ry", ry.toFixed(2));
+    }
+  }
+}
+
+// Head tilt based on phase
+function updateHeadTilt(dt) {
+  if (typeof currentPhase !== "undefined") {
+    if (currentPhase === "listening") targetHeadTilt = 8;
+    else if (currentPhase === "thinking") targetHeadTilt = -6;
+    else targetHeadTilt = 0;
+  }
+  headTiltAngle += (targetHeadTilt - headTiltAngle) * 0.03;
+  var hg = document.getElementById("helmetGroup");
+  if (hg) hg.style.transform = "rotate(" + headTiltAngle.toFixed(2) + "deg)";
+}
+
+// Wave animation when first activated
+function triggerWave() {
+  isWaving = true;
+  waveTimer = 0;
+}
+
+// Spin when excited
+function triggerSpin() {
+  isSpinning = true;
+  spinAngle = 0;
+}
+
+// Chest breathing
+function updateBreathing(t) {
+  breathScale = 1 + 0.015 * Math.sin(t * 0.0008);
+  var cb = document.getElementById("chestBreath");
+  if (cb) cb.style.transform = "scaleX(" + breathScale.toFixed(4) + ")";
+}
+
+function animateCharacter(timestamp) {
+  var dt = Math.min(timestamp - lastFrame, 80);
+  lastFrame = timestamp;
+  animT += dt;
+
+  // ── ARM SWAY ──
+  var armL = document.getElementById("armL");
+  var armR = document.getElementById("armR");
+  if (armL) armL.style.transform = "rotate(" + fv(0.0005,0,5,animT).toFixed(2) + "deg)";
+  if (armR) armR.style.transform = "rotate(" + fv(0.0006,1.6,5,animT).toFixed(2) + "deg)";
+
+  // ── WAVE OVERRIDE ──
+  if (isWaving) {
+    waveTimer += dt;
+    var waveAng = -30 + Math.sin(waveTimer * 0.01) * 25;
+    if (armL) armL.style.transform = "rotate(" + waveAng.toFixed(1) + "deg)";
+    if (waveTimer > 2000) isWaving = false;
+  }
+
+  // ── SPIN WHEN EXCITED ──
+  if (isSpinning) {
+    spinAngle += dt * 0.3;
+    var autoBody = document.getElementById("autoBody");
+    if (autoBody) autoBody.style.transform = "rotate(" + spinAngle.toFixed(1) + "deg)";
+    if (spinAngle >= 360) { isSpinning = false; spinAngle = 0; if(autoBody) autoBody.style.transform = ""; }
+  }
+
+  // ── BLINK ──
+  blinkTimer += dt;
+  if (blinkTimer > nextBlink) {
+    doBlink();
+    blinkTimer = 0;
+    nextBlink = 2000 + Math.random() * 4000;
+  }
+
+  // ── PUPILS ──
+  if (typeof currentPhase !== "undefined" && (currentPhase === "wake" || currentPhase === "setup")) {
+    updatePupils(dt);
+  }
+
+  // ── SPEAKING BARS & MOUTH ──
+  updateSpeakBars(dt);
+
+  // ── HEAD TILT ──
+  updateHeadTilt(dt);
+
+  // ── BREATHING ──
+  updateBreathing(animT);
+
+  // ── PARTICLES ──
+  updateParticles();
+
+  // ── ANTENNA PULSE color via JS ──
+  if (typeof currentPhase !== "undefined") {
+    var antColors = {wake:"rgba(80,205,255,0.95)",listening:"rgba(160,100,255,0.95)",thinking:"rgba(200,80,255,0.95)",speaking:"rgba(40,220,150,0.95)",error:"rgba(255,80,80,0.95)"};
+    var antEls = document.querySelectorAll("#astro-svg circle[stroke='rgba(195,238,255,0.9)']");
+    antEls.forEach(function(el) { el.setAttribute("fill", antColors[currentPhase] || antColors.wake); });
+  }
+
+  requestAnimationFrame(animateCharacter);
+}
+requestAnimationFrame(animateCharacter);
+
+// ══════════════════════════════════════════════════════
+// CONFIG & STATE
+// ══════════════════════════════════════════════════════
+const STORAGE={KEY:"cv_api_key",WAKE:"cv_wake_word",RATE:"cv_rate",PITCH:"cv_pitch",HISTORY:"cv_history"};
+const SYSTEM_PROMPT=`You are Auto, a sharp and professional AI voice assistant. Rules:
+- Lead with the answer immediately. No preamble, no filler.
+- Be brief and precise. 1-2 sentences for simple questions, 3-4 max for complex ones.
+- Speak in plain clear English optimized for being heard aloud.
+- Never use markdown, bullet points, asterisks, hashtags, or any special characters.
+- Never say things like Great question, Certainly, Of course, Sure, or Absolutely.
+- Never repeat the question back. Just answer it.
+- If you do not know something, say so in one sentence.`;
+
+var API_KEY="",WAKE_WORD="hey claude",VOICE_RATE=1.0,VOICE_PITCH=1.0;
+var currentPhase="setup",active=false,recognition=null,conversation=[],speakInterrupted=false;
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const synth=window.speechSynthesis||null;
+
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+function load(k,d){try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):d}catch(e){return d}}
+
+// ── INIT ──────────────────────────────────────────────
+document.addEventListener("DOMContentLoaded",()=>{
+  API_KEY=load(STORAGE.KEY,"");WAKE_WORD=load(STORAGE.WAKE,"hey claude");
+  VOICE_RATE=load(STORAGE.RATE,1.0);VOICE_PITCH=load(STORAGE.PITCH,1.0);
+  // key screen handled by window.load above
+  document.getElementById("wakeInput").value=WAKE_WORD;
+  document.getElementById("wakePreview").textContent=WAKE_WORD;
+  document.getElementById("rateSlider").value=VOICE_RATE;
+  document.getElementById("pitchSlider").value=VOICE_PITCH;
+  document.getElementById("rateVal").textContent=VOICE_RATE+"x";
+  document.getElementById("pitchVal").textContent=VOICE_PITCH;
+  document.getElementById("keyInput").addEventListener("keydown",e=>{if(e.key==="Enter")submitKey()});
+  // Wire launch button with addEventListener for reliability
+  const lb = document.getElementById("launchBtn");
+  if(lb) lb.addEventListener("click", submitKey);
+  if(synth){try{synth.getVoices()}catch(e){}synth.onvoiceschanged=()=>{}}
+});
+
+// ── FACE CONTROL ──────────────────────────────────────
+const FACES=["happy","thinking","listening","speaking","excited","error","drift"];
+function setFace(f){
+  FACES.forEach(n=>{const el=document.getElementById("face-"+n);if(el)el.style.display=n===f?"block":"none"});
+}
+setFace("happy");
+
+// ── PHASE ─────────────────────────────────────────────
+
+// Visor glow colors per phase
+var visorColors = {
+  setup:     "rgba(40,80,130,0.85)",
+  wake:      "rgba(30,80,160,0.9)",
+  listening: "rgba(80,40,180,0.92)",
+  thinking:  "rgba(140,30,200,0.9)",
+  streaming: "rgba(0,120,220,0.92)",
+  speaking:  "rgba(10,180,120,0.9)",
+  error:     "rgba(180,30,30,0.9)"
+};
+function updateVisorGlow(phase) {
+  var visor = document.getElementById("visorBg");
+  if (!visor) return;
+  var col = visorColors[phase] || visorColors.wake;
+  // We'll update the stop colors dynamically
+  var stops = visor.querySelectorAll ? null : null;
+  // Simpler: just shift the visor fill opacity
+  visor.style.filter = phase === "speaking" || phase === "listening"
+    ? "brightness(1.3) saturate(1.4)"
+    : phase === "thinking"
+    ? "brightness(1.2) saturate(1.3) hue-rotate(20deg)"
+    : "brightness(1) saturate(1)";
+  visor.style.transition = "filter 0.8s ease";
+}
+
+function setPhase(p){
+  currentPhase=p;document.body.setAttribute("data-phase",p);
+  const labels={setup:"Offline",wake:"Awaiting Wake Word",listening:"Listening...",thinking:"Thinking...",streaming:"Responding...",speaking:"Speaking...",error:"Error"};
+  document.getElementById("sLabel").textContent=labels[p]||p;
+  document.getElementById("statusWrap").style.visibility=p==="setup"?"hidden":"visible";
+  document.getElementById("btnRow").style.display="flex";
+  var btnEnd=document.getElementById("btnEnd");
+  if(btnEnd) btnEnd.style.display=(p!=="setup")?"inline-flex":"none";
+  document.getElementById("btnInterrupt").style.display=(p==="speaking"||p==="streaming")?"inline-flex":"none";
+  // Orb button icon & pulse
+  var orb=document.getElementById("orbBtn");
+  if(orb){
+    orb.classList.toggle("pulsing", p==="wake"||p==="listening");
+    orb.classList.toggle("orb-thinking", p==="thinking"||p==="streaming");
+    orb.classList.toggle("orb-speaking", p==="speaking");
+    orb.classList.toggle("orb-error", p==="error");
+  }
+  updateVisorGlow(p);
+  // Face
+  const faceMap={setup:"happy",wake:"happy",listening:"listening",thinking:"thinking",streaming:"thinking",speaking:"speaking",error:"error"};
+  setFace(faceMap[p]||"happy");
+  // Body animation class
+  const wrap=document.querySelector(".float-anim");
+  if(wrap){
+    const animMap={listening:"anim-listening",thinking:"anim-thinking",speaking:"anim-speaking",streaming:"anim-speaking"};
+    document.getElementById("stage").className="";
+    if(animMap[p])document.getElementById("stage").classList.add(animMap[p]);
+  }
+}
+
+function setText(t,muted=false){const el=document.getElementById("displayText");el.textContent=t;el.className="display-text"+(muted?" muted":"")}
+function setStream(t){document.getElementById("streamText").textContent=t}
+function setInterim(t){document.getElementById("interim").textContent=t?`"${t}"`:""}
+
+// ── SPEECH BUBBLE ─────────────────────────────────────
+let bubbleTimer=null;
+function showBubble(text,ms=4000){
+  const b=document.getElementById("bubble");
+  b.textContent=text;b.style.display="block";
+  clearTimeout(bubbleTimer);
+  bubbleTimer=setTimeout(()=>b.style.display="none",ms);
+}
+var quipTimer=null;
+function scheduleIdleQuip(){ /* disabled */ }
+
+// ── CHAT ──────────────────────────────────────────────
+function addBubbleChat(role,text){
+  const chat=document.getElementById("chat");chat.style.display="block";
+  const msgs=document.getElementById("chatMsgs");
+  const w=document.createElement("div");w.className=`bw ${role}`;
+  const b=document.createElement("div");b.className=`bb ${role}`;b.textContent=text;
+  w.appendChild(b);msgs.appendChild(w);
+  document.getElementById("chatEnd").scrollIntoView({behavior:"smooth"});
+}
+function clearChat(){if(conversation.length>0)saveToHistory();conversation=[];document.getElementById("chatMsgs").innerHTML="";document.getElementById("chat").style.display="none"}
+
+// ── VOICE ─────────────────────────────────────────────
+function getBestVoice(){
+  if(!synth) return null;
+  var voices=[];
+  try{ voices=synth.getVoices()||[]; }catch(e){}
+  if(!voices.length) return null;
+
+  // Score each voice — higher = more natural
+  function scoreVoice(v) {
+    var score = 0;
+    var name = (v.name||"").toLowerCase();
+    var lang = (v.lang||"").toLowerCase();
+    // Best voices on Android/iOS
+    if(name.includes("samantha"))  score+=100;
+    if(name.includes("karen"))     score+=95;
+    if(name.includes("moira"))     score+=90;
+    if(name.includes("tessa"))     score+=88;
+    if(name.includes("serena"))    score+=85;
+    if(name.includes("fiona"))     score+=82;
+    if(name.includes("victoria"))  score+=80;
+    if(name.includes("allison"))   score+=78;
+    if(name.includes("ava"))       score+=76;
+    if(name.includes("susan"))     score+=74;
+    if(name.includes("zoe"))       score+=72;
+    // Google voices are decent
+    if(name.includes("google uk english female")) score+=70;
+    if(name.includes("google us english"))        score+=60;
+    if(name.includes("google"))    score+=40;
+    // Prefer English
+    if(lang.startsWith("en-us"))   score+=20;
+    if(lang.startsWith("en-gb"))   score+=18;
+    if(lang.startsWith("en"))      score+=10;
+    // Penalize robotic/male voices
+    if(name.includes("male"))      score-=30;
+    if(name.includes("espeak"))    score-=50;
+    if(name.includes("mbrola"))    score-=50;
+    // Prefer local voices (not network)
+    if(v.localService)             score+=15;
+    return score;
+  }
+
+  var best = voices.reduce(function(a,b){ return scoreVoice(a)>=scoreVoice(b)?a:b; });
+  return best || null;
+}
+// Unlock audio on first user gesture (required on iOS/Android)
+var audioUnlocked = false;
+function unlockAudio() {
+  if (audioUnlocked || !synth) return;
+  var u = new SpeechSynthesisUtterance("");
+  u.volume = 0;
+  synth.speak(u);
+  audioUnlocked = true;
+}
+// Attach unlock to first tap anywhere
+document.addEventListener("touchstart", unlockAudio, { once: true });
+document.addEventListener("click", unlockAudio, { once: true });
+
+// Natural text preprocessing for more human-sounding speech
+function prepareTextForSpeech(text) {
+  return text
+    // Expand common contractions for smoother flow
+    .replace(/can't/gi,   "cannot")
+    .replace(/won't/gi,   "will not")
+    .replace(/don't/gi,   "do not")
+    .replace(/didn't/gi,  "did not")
+    .replace(/isn't/gi,   "is not")
+    .replace(/it's/gi,    "it is")
+    .replace(/i'm/gi,     "I am")
+    .replace(/i've/gi,    "I have")
+    .replace(/i'll/gi,    "I will")
+    .replace(/you're/gi,  "you are")
+    .replace(/they're/gi, "they are")
+    .replace(/we're/gi,   "we are")
+    .replace(/that's/gi,  "that is")
+    .replace(/there's/gi, "there is")
+    .replace(/what's/gi,  "what is")
+    .replace(/let's/gi,   "let us")
+    // Add natural pauses after commas and dashes
+    .replace(/,\s*/g,  ",  ")
+    .replace(/\s*-\s*/g, ",  ")
+    .replace(/\s*—\s*/g, ",  ")
+    // Remove any leftover markdown
+    .replace(/[*_`#]/g, "")
+    .trim();
+}
+
+// Split into natural breath groups
+function splitIntoChunks(text) {
+  // Split on sentence endings, keeping the punctuation
+  var raw = text.match(/[^.!?]+[.!?]+\s*/g) || [text];
+  var chunks = [];
+  raw.forEach(function(s) {
+    s = s.trim();
+    if (!s) return;
+    // Further split very long sentences at commas for natural pausing
+    if (s.length > 80) {
+      var parts = s.split(/,\s+/);
+      parts.forEach(function(p, i) {
+        if (p.trim()) chunks.push(p.trim() + (i < parts.length-1 ? "," : ""));
+      });
+    } else {
+      chunks.push(s);
+    }
+  });
+  return chunks.length ? chunks : [text];
+}
+
+function speakFull(text, onEnd) {
+  if (!synth) { if (onEnd) onEnd(); return; }
+  synth.cancel();
+  speakInterrupted = false;
+
+  var voices = synth.getVoices ? synth.getVoices() : [];
+  if (!voices.length) {
+    setTimeout(function() { speakFull(text, onEnd); }, 300);
+    return;
+  }
+
+  var prepared = prepareTextForSpeech(text);
+  var chunks = splitIntoChunks(prepared);
+  var idx = 0;
+  var bestVoice = getBestVoice();
+
+  function next() {
+    if (speakInterrupted || idx >= chunks.length) { if (onEnd) onEnd(); return; }
+    var chunk = chunks[idx++].trim();
+    if (!chunk) { next(); return; }
+
+    var u = new SpeechSynthesisUtterance(chunk);
+
+    // Natural voice settings - slightly slower, natural pitch
+    u.rate   = Math.max(1.1,  Math.min(VOICE_RATE * 1.15, 1.5));  // clear, crisp pace
+    u.pitch  = Math.max(1.0,  Math.min(VOICE_PITCH,         1.2));  // natural pitch
+    u.volume = 1.0;
+    u.lang   = "en-US";
+    if (bestVoice) u.voice = bestVoice;
+
+    u.onend = function() {
+      // Tiny natural pause between sentences (80-120ms)
+      setTimeout(next, 10);
+    };
+    u.onerror = function(e) {
+      console.warn("TTS error:", e.error);
+      setTimeout(next, 50);
+    };
+
+    if (synth.paused) synth.resume();
+    synth.speak(u);
+
+    // iOS stall kick
+    setTimeout(function() { if (synth.paused) synth.resume(); }, 150);
+  }
+  next();
+}
+function handleInterrupt(){
+  speakInterrupted=true;if(synth)synth.cancel();setStream("");
+  if(active){setPhase("wake");setText("Tap mic to speak");scheduleIdleQuip();}
+}
+
+// ── CLAUDE API ─────────────────────────────────────────
+async function callClaude(userMessage){
+  clearTimeout(quipTimer);
+  setPhase("thinking");setText("Auto is thinking...");setStream("");setInterim("");
+  showBubble("Let me think...", 4000);
+  conversation.push({role:"user",content:userMessage});
+  addBubbleChat("user",userMessage);
+  try{
+    const res=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","x-api-key":API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+      body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:250,stream:true,system:SYSTEM_PROMPT,messages:conversation,tools:[{type:"web_search_20250305",name:"web_search"}]})
+    });
+    if(!res.ok)throw new Error("API "+res.status);
+    setPhase("streaming");setText("Auto is responding...");
+    const reader=res.body.getReader(),decoder=new TextDecoder();
+    let fullText="";
+    while(true){
+      const{done,value}=await reader.read();if(done)break;
+      for(const line of decoder.decode(value,{stream:true}).split("\n")){
+        if(!line.startsWith("data:"))continue;
+        const data=line.slice(5).trim();if(data==="[DONE]")break;
+        try{const p=JSON.parse(data);if(p.type==="content_block_delta"&&p.delta?.type==="text_delta"){fullText+=p.delta.text;setStream(fullText.slice(0,80)+(fullText.length>80?"...":""))}}catch(e){}
+      }
+    }
+    const reply=fullText.trim()||"Whoa, I lost signal there! Try again?";
+    conversation.push({role:"assistant",content:reply});
+    addBubbleChat("bot",reply);setStream("");
+    // Show excited face randomly on good responses
+    if(reply.includes("!")||reply.includes("awesome")||reply.includes("great")){setFace("excited");setTimeout(()=>setPhase("speaking"),600);setTimeout(()=>{},600)}
+    setPhase("speaking");setText(reply.length>100?reply.slice(0,97)+"...":reply);
+    showBubble(reply.length>80?reply.slice(0,77)+"...":reply,6000);
+    speakFull(reply,()=>{if(active){setPhase("wake");setText("Tap mic to speak");scheduleIdleQuip();}});
+  }catch(err){
+    console.error(err);
+    addBubbleChat("error","Connection glitch! Check your network or API key.");
+    setPhase("error");setText("Houston, we have a problem...");showBubble("Uh oh! Signal lost! 📡",4000);
+  }
+}
+
+// ── RECOGNITION ───────────────────────────────────────
+function stopListening(){if(recognition){try{recognition.abort()}catch(e){}recognition=null}}
+var listeningLock = false;  // prevents rapid restart loops
+var orbDebounce = false;     // prevents double-tap
+
+// ── SIMPLE PTT LISTEN ─────────────────────────────────
+// One recognition session per tap. No auto-restart loops.
+function startListening(){
+  if(!SR||!active)return;
+  stopListening();
+
+  var rec = new SR();
+  rec.lang = "en-US";
+  rec.interimResults = true;
+  rec.continuous = false;   // single utterance, browser ends it naturally
+  rec.maxAlternatives = 1;
+  recognition = rec;
+
+  var finalT = "";
+  var gotSpeech = false;
+
+  rec.onstart = function(){
+    setPhase("listening");
+    setText("Listening...");
+  };
+
+  rec.onresult = function(e){
+    var interim = "";
+    for(var i = 0; i < e.results.length; i++){
+      if(e.results[i].isFinal){ finalT += e.results[i][0].transcript + " "; gotSpeech = true; }
+      else interim += e.results[i][0].transcript;
+    }
+    setInterim((finalT + interim).trim().slice(-80));
+  };
+
+  rec.onend = function(){
+    setInterim("");
+    var t = finalT.trim();
+    if(t && active){
+      callClaude(t);
+    } else {
+      // nothing heard — go back to ready
+      setPhase("wake");
+      setText("Tap mic to speak");
+    }
+  };
+
+  rec.onerror = function(e){
+    if(e.error === "not-allowed"){
+      active = false; setPhase("setup");
+      setText("Tap to activate Auto", true);
+      showModal(true); return;
+    }
+    // any other error — just go back to ready quietly
+    setPhase("wake");
+    setText("Tap mic to speak");
+  };
+
+  try{ rec.start(); }
+  catch(err){ console.error("rec.start:", err); setPhase("wake"); setText("Tap mic to speak"); }
+}
+
+// ── CONTROLS ──────────────────────────────────────────
+function handleOrbClick(){
+  if(orbDebounce) return;
+  orbDebounce = true;
+  setTimeout(function(){ orbDebounce = false; }, 800);
+
+  if(currentPhase === "setup"){
+    handleActivate();
+  } else if(currentPhase === "wake"){
+    // Tap to start listening
+    startListening();
+  } else if(currentPhase === "listening"){
+    // Tap again to cancel listening
+    stopListening();
+    setPhase("wake");
+    setText("Tap mic to speak");
+  } else if(currentPhase === "speaking" || currentPhase === "streaming"){
+    handleInterrupt();
+  }
+}
+function handleActivate(){
+  if(!SR){setText("Speech recognition not supported. Use Chrome on Android.",true);return}
+  if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
+    navigator.mediaDevices.getUserMedia({audio:true}).then(s=>{s.getTracks().forEach(t=>t.stop());closeModal();doActivate()}).catch(e=>{if(e.name==="NotAllowedError"||e.name==="PermissionDeniedError")showModal(true);else doActivate()})
+  }else doActivate();
+}
+function doActivate(){active=true;setPhase("wake");setText("Tap mic to speak");showBubble("Ready.", 2000);scheduleIdleQuip();setTimeout(triggerWave,600);}
+function handleTapSpeak(){ startListening(); }
+function handleStop(){saveToHistory();active=false;speakInterrupted=true;clearTimeout(quipTimer);stopListening();if(synth)synth.cancel();setPhase("setup");setText("Tap to activate Auto", true);setInterim("");setStream("");document.getElementById("bubble").style.display="none"}
+
+// ── HISTORY ───────────────────────────────────────────
+function saveToHistory(){if(conversation.length<2)return;const h=load(STORAGE.HISTORY,[]);const first=conversation.find(m=>m.role==="user");h.unshift({date:new Date().toLocaleString(),preview:first?first.content.slice(0,80):"Session",messages:[...conversation]});if(h.length>30)h.splice(30);save(STORAGE.HISTORY,h)}
+function openHistory(){
+  var chat = document.getElementById("chat");
+  var isOpen = chat.style.display === "block";
+  if(isOpen){
+    chat.style.display = "none";
+    document.body.classList.remove("chat-open");
+  } else {
+    chat.style.display = "block";
+    document.body.classList.add("chat-open");
+    // scroll to bottom
+    var end = document.getElementById("chatEnd");
+    if(end) end.scrollIntoView({behavior:"smooth"});
+  }
+}
+function loadSession(i){const h=load(STORAGE.HISTORY,[]),s=h[i];if(!s)return;conversation=[...s.messages];document.getElementById("chatMsgs").innerHTML="";s.messages.forEach(m=>addBubbleChat(m.role==="user"?"user":"bot",m.content));document.getElementById("chat").style.display="block";closePanel("historyOverlay");addBubbleChat("system","Loaded past mission log — continuing...")}
+function clearAllHistory(){if(!confirm("Delete all mission logs?"))return;save(STORAGE.HISTORY,[]);openHistory()}
+
+// ── PANELS / MODAL ────────────────────────────────────
+function closePanel(id){document.getElementById(id).classList.remove("show")}
+function closePanelOnOverlay(e,id){if(e.target===document.getElementById(id))closePanel(id)}
+let modalDenied=false;
+function showModal(denied){
+  modalDenied=denied;
+  const sub=document.getElementById("modalSub"),tabs=document.getElementById("modalTabs"),sA=document.getElementById("stepsAndroid"),sI=document.getElementById("stepsIos"),btn=document.getElementById("modalPrimaryBtn");
+  if(denied){sub.innerHTML="Mic was blocked! Follow the steps for your device, then reload.";tabs.style.display="flex";sA.style.display="flex";sI.style.display="none";btn.textContent="🔄 Reload & Try Again"}
+  else{sub.innerHTML="Auto needs your mic to hear you!<br>Tap below to allow access.";tabs.style.display="none";sA.style.display="none";sI.style.display="none";btn.textContent="🎙️ Allow Microphone"}
+  document.getElementById("micModal").classList.add("show");
+}
+function closeModal(){document.getElementById("micModal").classList.remove("show")}
+function switchTab(t){document.querySelectorAll(".tb").forEach((b,i)=>b.classList.toggle("active",(i===0)===(t==="android")));document.getElementById("stepsAndroid").style.display=t==="android"?"flex":"none";document.getElementById("stepsIos").style.display=t==="ios"?"flex":"none"}
+function handleModalPrimary(){if(modalDenied){location.reload();return}navigator.mediaDevices.getUserMedia({audio:true}).then(s=>{s.getTracks().forEach(t=>t.stop());closeModal();doActivate()}).catch(e=>{if(e.name==="NotAllowedError"||e.name==="PermissionDeniedError")showModal(true);else{closeModal();doActivate()}})}
+
+// ── SETTINGS ──────────────────────────────────────────
+function openSettings(){document.getElementById("wakeInput").value=WAKE_WORD;document.getElementById("rateSlider").value=VOICE_RATE;document.getElementById("pitchSlider").value=VOICE_PITCH;updateSlider("rate");updateSlider("pitch");document.getElementById("settingsOverlay").classList.add("show")}
+function updateSlider(t){if(t==="rate"){const v=parseFloat(document.getElementById("rateSlider").value);document.getElementById("rateVal").textContent=v.toFixed(1)+"x"}else{const v=parseFloat(document.getElementById("pitchSlider").value);document.getElementById("pitchVal").textContent=v.toFixed(1)}}
+function saveSettings(){const ww=document.getElementById("wakeInput").value.trim().toLowerCase();if(ww){WAKE_WORD=ww;save(STORAGE.WAKE,ww);document.getElementById("wakePreview").textContent=ww}VOICE_RATE=parseFloat(document.getElementById("rateSlider").value);VOICE_PITCH=parseFloat(document.getElementById("pitchSlider").value);save(STORAGE.RATE,VOICE_RATE);save(STORAGE.PITCH,VOICE_PITCH);closePanel("settingsOverlay")}
+function updateApiKey(){const v=document.getElementById("newKeyInput").value.trim();if(!v||v.length<10){alert("Please paste a valid API key.");return}API_KEY=v;save(STORAGE.KEY,v);document.getElementById("newKeyInput").value="";closePanel("settingsOverlay")}
+
+// ── API KEY ───────────────────────────────────────────
+function toggleKeyVis(){/* removed */}
+
+// ── TEXT INPUT BAR ────────────────────────────────────
+var textBarOpen = false;
+function toggleTextBar() {
+  textBarOpen = !textBarOpen;
+  var bar = document.getElementById("textBar");
+  var kb = document.getElementById("keyboardToggle");
+  if (bar) bar.style.display = textBarOpen ? "flex" : "none";
+  if (kb) kb.classList.toggle("active", textBarOpen);
+  if (textBarOpen) {
+    var inp = document.getElementById("textInput");
+    if (inp) setTimeout(function(){ inp.focus(); }, 80);
+  }
+}
+function sendText() {
+  var inp = document.getElementById("textInput");
+  if (!inp) return;
+  var v = inp.value.trim();
+  if (!v) return;
+  inp.value = "";
+  // Make sure session is active
+  if (!active) {
+    active = true;
+    setPhase("wake");
+  }
+  callClaude(v);
+}
+// Wire enter key on text input
+document.addEventListener("DOMContentLoaded", function() {
+  var inp = document.getElementById("textInput");
+  if (inp) {
+    inp.addEventListener("keydown", function(e) {
+      if (e.key === "Enter") { e.preventDefault(); sendText(); }
+    });
+  }
+});
+
+// ══════════════════════════════════════════════════════
+// ZERO-GRAVITY DRIFT SYSTEM
+// True space physics: no friction, micro-thrust impulses,
+// slow rotation, gentle tumble — like an astronaut untethered
+// ══════════════════════════════════════════════════════
+var zg = {
+  x: 0, y: 0,
+  z: 0, vz: 0,
+  vx: 0.0, vy: 0.0,
+  // Z-axis spin (existing)
+  angle: 0, vAngle: 0,
+  // X-axis tumble (forward/backward flip) — 0..360
+  rotX: 0, vRotX: 0,
+  // Y-axis tumble (left/right spin — reveals back)
+  rotY: 0, vRotY: 0,
+  W: 0, H: 0,
+  wrapW: 220, wrapH: 300,
+  active: false,
+  idleTimer: null,
+  thrustTimer: null,
+  tumbleT: 0
+};
+
+function zgInit() {
+  var stage = document.getElementById('stage');
+  if (!stage) return;
+  zg.W = stage.offsetWidth  || window.innerWidth;
+  zg.H = stage.offsetHeight || window.innerHeight;
+  applyZG();
+}
+
+// Thruster flicker noise
+var thrustNoise = 0;
+
+// Smooth face-drift transition vars
+var driftFaceActive = false;
+var driftFaceTimer  = null;
+
+function applyZG() {
+  var wrap = document.getElementById('astro-wrap');
+  if (!wrap) return;
+
+  // Show :O face when moving fast
+  var speed = Math.sqrt(zg.vx * zg.vx + zg.vy * zg.vy + zg.vz * zg.vz * 0.3);
+  var isMovingFast = speed > 0.06;
+  var inNeutralPhase = (currentPhase === "wake" || currentPhase === "setup");
+
+  if (isMovingFast && zg.active && inNeutralPhase) {
+    if (!driftFaceActive) {
+      driftFaceActive = true;
+      clearTimeout(driftFaceTimer);
+      setFace("drift");
+    }
+  } else {
+    if (driftFaceActive) {
+      driftFaceActive = false;
+      clearTimeout(driftFaceTimer);
+      // Small delay before reverting so face doesn't flicker
+      driftFaceTimer = setTimeout(function() {
+        if (!driftFaceActive && inNeutralPhase) setFace("happy");
+      }, 600);
+    }
+  }
+  var cx = (zg.W - zg.wrapW) / 2;
+  var cy = (zg.H - zg.wrapH) / 2 - 30;
+  // Z depth: scale and opacity simulate floating in/out of screen
+  // z range: -2 (tiny, far) to +1.5 (large, close)
+  // z=0 → scale 1.0 (normal), z=1.8 → scale ~1.85 (very close, detailed)
+  var scale   = Math.max(0.15, 1.0 + zg.z * 0.48);
+  var opacity = Math.max(0.0,  Math.min(1.0, 0.15 + (zg.z + 2) / 2.6));
+
+  // Parallax: when far, x/y movement is compressed; when close, exaggerated
+  var parallax = scale;
+
+  wrap.style.left      = (cx + zg.x * parallax) + 'px';
+  wrap.style.top       = (cy + zg.y * parallax) + 'px';
+  // Full 3D transform: z-spin + x-flip + y-spin + scale
+  wrap.style.transform =
+    'perspective(600px) ' +
+    'rotateZ(' + zg.angle.toFixed(2) + 'deg) ' +
+    'rotateX(' + zg.rotX.toFixed(2)  + 'deg) ' +
+    'rotateY(' + zg.rotY.toFixed(2)  + 'deg) ' +
+    'scale('   + scale.toFixed(3)    + ')';
+  wrap.style.opacity   = opacity.toFixed(3);
+
+  // Show back-face when rotated past 90deg on X or Y
+  var absX = ((zg.rotX % 360) + 360) % 360;
+  var absY = ((zg.rotY % 360) + 360) % 360;
+  var showingBack = (absY > 85 && absY < 275) || (absX > 85 && absX < 275);
+  updateBackFace(showingBack);
+  updateThrusters();
+}
+
+function updateThrusters() {
+  var tg = document.getElementById('thrusters');
+  if (!tg) return;
+
+  var speed = Math.sqrt(zg.vx * zg.vx + zg.vy * zg.vy + zg.vz * zg.vz * 0.5);
+  var rotSpeed = Math.abs(zg.vAngle);
+  var thrust = Math.min(1.0, (speed * 4) + (rotSpeed * 30));
+
+  // Flicker — random noise on top
+  thrustNoise = thrustNoise * 0.7 + (Math.random() * 0.3);
+  var flicker = thrust > 0.05 ? thrust * (0.75 + thrustNoise * 0.4) : 0;
+
+  tg.setAttribute('opacity', flicker.toFixed(3));
+
+  if (flicker < 0.01) return;
+
+  // Figure out which thruster is "firing" based on movement direction
+  // Convert velocity to local space (account for rotation)
+  var rad = zg.angle * Math.PI / 180;
+  var cos = Math.cos(rad), sin = Math.sin(rad);
+  // Local x = lateral movement, local y = forward/back
+  var localX = zg.vx * cos + zg.vy * sin;
+
+  // If moving/rotating right → left thruster fires more, vice versa
+  var leftBias  = Math.max(0, Math.min(1,  0.5 + localX * 2 + zg.vAngle * 20));
+  var rightBias = Math.max(0, Math.min(1,  0.5 - localX * 2 - zg.vAngle * 20));
+
+  // Flame size scales with thrust + flicker
+  var baseRy = 6 + flicker * 10;
+  var flickerA = 0.7 + thrustNoise * 0.55;
+  var flickerB = 0.75 + (1 - thrustNoise) * 0.45;
+
+  var lo = document.getElementById('thrustLOuter');
+  var lc = document.getElementById('thrustLCore');
+  var ro = document.getElementById('thrustROuter');
+  var rc = document.getElementById('thrustRCore');
+
+  if (lo) {
+    var lSize = baseRy * (0.4 + leftBias * 0.6);
+    lo.setAttribute('ry', lSize.toFixed(1));
+    lo.setAttribute('opacity', (flickerA * leftBias * 0.85).toFixed(2));
+    lc.setAttribute('ry', (lSize * 0.45).toFixed(1));
+  }
+  if (ro) {
+    var rSize = baseRy * (0.4 + rightBias * 0.6);
+    ro.setAttribute('ry', rSize.toFixed(1));
+    ro.setAttribute('opacity', (flickerB * rightBias * 0.85).toFixed(2));
+    rc.setAttribute('ry', (rSize * 0.45).toFixed(1));
+  }
+}
+
+// Apply a tiny random thrust impulse — like a micro puff of air
+function zgThrust() {
+  if (!zg.active) return;
+
+  // Random direction, very small force — like tapping in zero-g
+  var angle  = Math.random() * Math.PI * 2;
+  var power  = 0.04 + Math.random() * 0.06;
+  zg.vx += Math.cos(angle) * power;
+  zg.vy += Math.sin(angle) * power;
+
+  // Z axis thrust — drift toward or away from camera
+  zg.vz += (Math.random() - 0.5) * 0.003;
+
+  // Rotational impulses on all 3 axes
+  zg.vAngle += (Math.random() - 0.5) * 0.008;
+  zg.vRotX  += (Math.random() - 0.5) * 0.015;  // flip tumble
+  zg.vRotY  += (Math.random() - 0.5) * 0.012;  // spin reveal back
+
+  // Clamp max speed
+  var speed = Math.sqrt(zg.vx * zg.vx + zg.vy * zg.vy);
+  var maxSpeed = 0.28;
+  if (speed > maxSpeed) {
+    zg.vx = (zg.vx / speed) * maxSpeed;
+    zg.vy = (zg.vy / speed) * maxSpeed;
+  }
+  zg.vz     = Math.max(-0.006, Math.min(0.006, zg.vz));
+  zg.vAngle = Math.max(-0.04,  Math.min(0.04,  zg.vAngle));
+  zg.vRotX  = Math.max(-0.06,  Math.min(0.06,  zg.vRotX));
+  zg.vRotY  = Math.max(-0.05,  Math.min(0.05,  zg.vRotY));
+
+  // Brief thruster flash on impulse
+  var tg = document.getElementById('thrusters');
+  if (tg) {
+    tg.setAttribute('opacity', '1');
+    setTimeout(function(){ if(tg) tg.setAttribute('opacity', '0'); }, 300 + Math.random() * 200);
+  }
+
+  // Schedule next micro-thrust — irregular timing like real microgravity
+  clearTimeout(zg.thrustTimer);
+  zg.thrustTimer = setTimeout(zgThrust, 2500 + Math.random() * 4000);
+}
+
+function zgStart() {
+  if (zg.active) return;
+  zg.active = true;
+  // Give a tiny initial nudge so he starts moving immediately
+  var a = Math.random() * Math.PI * 2;
+  zg.vx += Math.cos(a) * 0.06;
+  zg.vy += Math.sin(a) * 0.06;
+  zg.vAngle += (Math.random() - 0.5) * 0.008;
+  // Random z nudge — might fly toward or away from camera
+  zg.vz += (Math.random() - 0.5) * 0.004;
+  // Schedule ongoing micro-thrusts
+  clearTimeout(zg.thrustTimer);
+  zg.thrustTimer = setTimeout(zgThrust, 2000 + Math.random() * 3000);
+}
+
+function zgStop() {
+  zg.active = false;
+  clearTimeout(zg.thrustTimer);
+}
+
+// Target z for zoom — spring drives toward this
+var zg_targetZ = 0;
+var zg_zooming = false;
+
+function zgZoomIn() {
+  zg_targetZ = 1.8;   // Very close — fills screen nicely
+  zg_zooming = true;
+  // Also center x/y
+  zg.vx *= 0.2; zg.vy *= 0.2;
+}
+
+function zgZoomOut() {
+  zg_targetZ = 0;     // Return to normal
+  zg_zooming = false;
+}
+
+function zgReturnToCenter() {
+  // Cancel rotation and pull back — not instant, uses physics
+  zg.vAngle *= 0.85;
+}
+
+function zgTick(dt) {
+  if (!zg.W) zgInit();
+
+  zg.tumbleT += dt;
+
+  if (zg.active) {
+    // Silky inertia — very low damping, movement persists long
+    var drag = Math.pow(0.99985, dt);
+    zg.vx *= drag;
+    zg.vy *= drag;
+    zg.vAngle *= Math.pow(0.9992, dt);
+    // 3D tumble axes — persist like real zero-g rotation
+    zg.vRotX *= Math.pow(0.9994, dt);
+    zg.vRotY *= Math.pow(0.9994, dt);
+    zg.rotX  += zg.vRotX * dt;
+    zg.rotY  += zg.vRotY * dt;
+
+    // Wall bounce — elastic reflection off screen edges with padding
+    var padX = zg.wrapW * 0.6;
+    var padY = zg.wrapH * 0.6;
+    var limX = zg.W  / 2 - padX;
+    var limY = zg.H  / 2 - padY - 60;
+
+    if (zg.x >  limX) { zg.x =  limX; zg.vx *= -0.35; zg.vAngle += 0.01; }
+    if (zg.x < -limX) { zg.x = -limX; zg.vx *= -0.35; zg.vAngle -= 0.01; }
+    if (zg.y >  limY) { zg.y =  limY; zg.vy *= -0.35; }
+    if (zg.y < -limY) { zg.y = -limY; zg.vy *= -0.35; }
+
+    // Z axis — float in and out of screen depth
+    var drag_z = Math.pow(0.9997, dt);
+    zg.vz *= drag_z;
+    zg.z  += zg.vz * dt;
+
+    if (zg.z >  1.6) { zg.z =  1.6; zg.vz *= -0.5; }
+    if (zg.z < -2.0) { zg.z = -2.0; zg.vz *= -0.7; }
+
+  } else {
+    // Return to center with soft spring — no sudden snap
+    var k  = 0.0012 * dt;
+    var damp = Math.pow(0.985, dt);
+    zg.vx += (-zg.x) * k;
+    zg.vy += (-zg.y) * k;
+    zg.vx *= damp;
+    zg.vy *= damp;
+    // Spring z toward target (0 normally, 1.8 when zoomed in)
+    var zTarget = zg_zooming ? zg_targetZ : 0;
+    zg.vz += (zTarget - zg.z) * 0.0025 * dt;
+    zg.vz *= Math.pow(0.96, dt);
+    zg.z  += zg.vz * dt;
+    zg.vAngle *= Math.pow(0.97, dt);
+    zg.angle += (0 - zg.angle) * 0.02;
+    // Spring rotX and rotY back to 0 when not drifting
+    zg.vRotX += (0 - zg.rotX) * 0.001 * dt;
+    zg.vRotY += (0 - zg.rotY) * 0.001 * dt;
+    zg.vRotX *= Math.pow(0.97, dt);
+    zg.vRotY *= Math.pow(0.97, dt);
+    zg.rotX  += zg.vRotX * dt;
+    zg.rotY  += zg.vRotY * dt;
+  }
+
+  zg.x += zg.vx * dt;
+  zg.y += zg.vy * dt;
+  zg.angle += zg.vAngle * dt;
+
+  applyZG();
+}
+
+// ── Back-face visibility ─────────────────────────────
+var backVisible = false;
+function updateBackFace(show) {
+  if (show === backVisible) return;
+  backVisible = show;
+  var front = document.getElementById('astro-svg');
+  var back  = document.getElementById('auto-back');
+  if (!front || !back) return;
+  front.style.display = show ? 'none' : '';
+  back.style.display  = show ? 'block' : 'none';
+}
+
+// ── Idle timer ───────────────────────────────────────
+function resetIdleTimer() {
+  clearTimeout(zg.idleTimer);
+  if (zg.active) {
+    zgStop();
+    zgReturnToCenter();
+  }
+  zg.idleTimer = setTimeout(function() {
+    if (currentPhase === 'wake' || currentPhase === 'setup') {
+      zgStart();
+    }
+  }, 5000);
+}
+
+// ── Drift tick via RAF loop ───────────────────────────
+(function zgLoop() {
+  var last = 0;
+  function tick(t) {
+    var dt = Math.min(t - last, 50);
+    last = t;
+    zgTick(dt);
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+
+// ── Reset on any user interaction ────────────────────
+['touchstart','mousedown','click'].forEach(function(ev) {
+  document.addEventListener(ev, resetIdleTimer, {passive: true});
+});
+
+// ── Stop drifting when active phases start ────────────
+var _origSetPhase = setPhase;
+setPhase = function(p) {
+  _origSetPhase(p);
+  if (p === 'listening' || p === 'thinking' || p === 'streaming' || p === 'speaking') {
+    zgStop();
+    zgZoomIn();   // Pull Auto close to camera
+  } else if (p === 'wake' || p === 'setup') {
+    zgZoomOut();  // Return to normal depth
+  } else {
+    zgStop();
+    zgReturnToCenter();
+  }
+  resetIdleTimer();
+};
+
+// ── Resize ────────────────────────────────────────────
+window.addEventListener('resize', function() {
+  var stage = document.getElementById('stage');
+  if (stage) {
+    zg.W = stage.offsetWidth  || window.innerWidth;
+    zg.H = stage.offsetHeight || window.innerHeight;
+  }
+});
+
+// ── Init ──────────────────────────────────────────────
+setTimeout(function() { zgInit(); resetIdleTimer(); }, 600);
+</script>
+</body>
+</html>
